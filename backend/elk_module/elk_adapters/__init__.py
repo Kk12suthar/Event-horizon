@@ -1,0 +1,1 @@
+# ELK adapters package initialization

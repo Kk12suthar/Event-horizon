@@ -1,0 +1,47 @@
+# Secrets / local env
+.env
+.env.*
+!.env.example
+*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.venv/
+venv/
+
+# Node / frontend
+node_modules/
+dist/
+dist-ssr/
+*.log
+
+# Generated runtime data (uploads, thumbnails, logs, artifacts)
+backend/uploads/*
+!backend/uploads/.gitignore
+backend/thumbnails/*
+!backend/thumbnails/.gitignore
+backend/logs/*
+!backend/logs/.gitignore
+backend/upload_states/*
+agent-server/artifacts/*
+logs/
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Service account / OAuth credential files - never commit real secrets
+firebase-credentials.json
+firebase-credentials.*.json
+client_secret_*.json
+*service-account*.json
+project-*.json

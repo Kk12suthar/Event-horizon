@@ -1,0 +1,59 @@
+<h2>Event Horizon UI Redesign Direction</h2>
+<p class="subtitle">Pick the structure you want before I implement. The recommendation follows your note: no duplicate page navigation inside Dashboard/Reports, full-page assistant surfaces, stable upload/project layouts, and a more iPhone-classy theme.</p>
+
+<div class="section">
+  <div class="mockup">
+    <div class="mockup-header">Visual concept: pearl / titanium / graphite workspace</div>
+    <div class="mockup-body">
+      <img src="/files/eventhorizon-redesign-concept.png" alt="Event Horizon redesign concept board" style="width:100%;border-radius:14px;border:1px solid rgba(0,0,0,.08);box-shadow:0 24px 70px rgba(28,33,48,.18);" />
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Recommended: Workbench Split</h3>
+      <p>Dashboard and Reports become full-height assistant + canvas pages. Global sidebar stays as the only navigation. Dashboard canvas is always visible. Reports use a large preview/download canvas instead of a tiny chat panel.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Assistant First</h3>
+      <p>Chat takes almost the whole page, with dashboard/report output opening as a slide-over preview. Very clean for conversation, but weaker if you want canvas and artifact visibility at all times.</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Canvas First</h3>
+      <p>The chart/report canvas takes most of the page, and chat becomes a collapsible command rail. Strong for finished dashboards, but it repeats the current problem of making AI feel secondary.</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>Implementation Scope I Recommend</h3>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>Fixes</h4>
+      <ul>
+        <li>Projects: align dense folder cards, stop button wrapping/cropping, improve folder action hierarchy.</li>
+        <li>Upload: full-height file rail, no half-width centered/cut file area, stable independent scrolling.</li>
+        <li>Dashboard: remove inner Projects/Upload/Transform/Reports nav, make assistant and canvas the whole page.</li>
+        <li>Reports: remove tiny right chat, make report generation a full workbench with format controls and preview.</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>Visual System</h4>
+      <ul>
+        <li>Move away from heavy dark blue UI.</li>
+        <li>Use pearl/titanium surfaces, graphite text, champagne/rose/lavender accents.</li>
+        <li>Keep controls professional, dense enough for work, but not cramped.</li>
+        <li>Keep Transform mostly intact, only restyle enough to match the new system.</li>
+      </ul>
+    </div>
+  </div>
+</div>

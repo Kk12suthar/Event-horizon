@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "eventhorizon-data": {
+      "command": "python",
+      "args": ["-m", "mcp_server.server"],
+      "cwd": "c:\\Users\\kixlo\\Desktop\\EventHorizon\\agent-server",
+      "env": {
+        "MCP_TRANSPORT": "stdio"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "data_list_tables",
+        "data_describe_tables"
+      ]
+    }
+  }
+}

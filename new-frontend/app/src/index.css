@@ -1,0 +1,245 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 9%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 20 50% 51%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 11%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 70%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 4 84% 56%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 20 50% 51%;
+    --radius: 0.45rem;
+    --chart-1: 20 50% 51%;
+    --chart-2: 32 50% 56%;
+    --chart-3: 142 40% 48%;
+    --chart-4: 38 50% 54%;
+    --chart-5: 16 45% 50%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: #000000;
+  }
+
+  /* Global film-grain overlay - subtle, sits above content but never blocks
+     interaction (pointer-events: none). Applied app-wide via body::before. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 2147483000;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 140px 140px;
+    opacity: 0.045;
+    mix-blend-mode: overlay;
+  }
+
+  /* Global cinematic vignette - gentle edge fade for an aesthetic falloff. */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 2147482000;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.5) 100%);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    body::before { opacity: 0.03; }
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #383838;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #4C4C4C;
+  }
+}
+
+@layer components {
+  .app-bg {
+    background-color: #0C0C0C;
+  }
+
+  .surface {
+    background-color: #171717;
+  }
+
+  .surface-hover {
+    background-color: #1E1E1E;
+  }
+
+  .border-subtle {
+    border-color: #2E2E2E;
+  }
+
+  .text-secondary {
+    color: #A1A1AA;
+  }
+
+  .text-muted {
+    color: #71717A;
+  }
+
+  .accent-blue {
+    color: #E4E4E7;
+  }
+
+  .accent-coral {
+    color: #F97066;
+  }
+
+  .bg-accent-blue {
+    background-color: #E4E4E7;
+  }
+
+  .bg-accent-coral {
+    background-color: #F97066;
+  }
+
+  /* Animation utilities */
+  .animate-fade-in {
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(90deg, #1C1C1C 25%, #232323 50%, #1C1C1C 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  .animate-spin-slow {
+    animation: spin 1s linear infinite;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Toast animation */
+.toast-enter {
+  animation: toastEnter 0.3s ease-out;
+}
+
+.toast-exit {
+  animation: toastExit 0.2s ease-in;
+}
+
+@keyframes toastEnter {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes toastExit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+
+/* ==========================================================================
+   Landing page (homepage) decorative utilities - ported from the standalone
+   homepage app's Tailwind v4 stylesheet. Consumed by src/components/landing/*.
+   ========================================================================== */
+
+.glow-orange {
+  box-shadow: 0 0 40px -10px rgba(193, 110, 67, 0.4);
+}
+
+.glow-blue {
+  box-shadow: 0 0 40px -10px rgba(0, 210, 255, 0.4);
+}
+
+.text-glow-orange {
+  text-shadow: 0 0 15px rgba(193, 110, 67, 0.6);
+}
+
+.text-glow-blue {
+  text-shadow: 0 0 15px rgba(0, 210, 255, 0.6);
+}
+
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.01) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.01) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-position: center center;
+}
+
+.dots-bg {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+.noise-bg {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
+}

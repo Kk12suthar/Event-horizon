@@ -1,0 +1,6 @@
+{
+  "name": "EventHorizon",
+  "description": "A cinematic data transformation and analysis platform featuring physics-accurate relativistic visualization and real-time structured insight flows.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

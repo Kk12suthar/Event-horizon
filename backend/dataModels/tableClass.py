@@ -1,0 +1,21 @@
+from sqlalchemy import Column, String, DateTime, ForeignKey, BINARY
+from sqlalchemy.orm import relationship
+from database import Base
+from datetime import datetime, timezone
+import uuid
+
+
+class Table(Base):
+    __tablename__ = "mtd_table"
+
+    id = Column(BINARY(16), primary_key=True, default=lambda: uuid.uuid4().bytes)
+    name = Column(String(45), nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    created_by = Column(BINARY(16), ForeignKey("mtd_users.id"), nullable=False)
+    file_id = Column(BINARY(16), ForeignKey("mtd_file.id"), nullable=True)
+    status = Column(String(20), nullable=False)
+
+    # Relationships
+    creator = relationship("User", foreign_keys=[created_by], back_populates="tables")
+    file = relationship("File", back_populates="tables")
+    results = relationship("Result", back_populates="table")
