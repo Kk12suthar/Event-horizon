@@ -39,6 +39,10 @@ logs/
 .DS_Store
 Thumbs.db
 
+# Local AI assistant state (not part of the codebase)
+.kiro/
+.superpower/
+
 # Service account / OAuth credential files - never commit real secrets
 firebase-credentials.json
 firebase-credentials.*.json
