@@ -13,7 +13,7 @@
     --popover: 0 0% 9%;
     --popover-foreground: 0 0% 100%;
     --primary: 20 50% 51%;
-    --primary-foreground: 0 0% 100%;
+    --primary-foreground: 0 0% 4%;
     --secondary: 0 0% 11%;
     --secondary-foreground: 0 0% 100%;
     --muted: 0 0% 15%;
@@ -242,4 +242,48 @@
 
 .noise-bg {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
+}
+
+/* Landing page: restrained monochrome typography and motion. */
+.landing-shell {
+  --landing-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  isolation: isolate;
+  color-scheme: dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+.landing-shell h1,
+.landing-shell h2 {
+  text-wrap: balance;
+}
+
+.landing-shell p {
+  text-wrap: pretty;
+}
+
+.landing-shell button,
+.landing-shell a,
+.landing-shell summary {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.landing-shell :focus-visible {
+  outline: 2px solid rgba(193, 110, 67, 0.9);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .landing-shell *,
+  .landing-shell *::before,
+  .landing-shell *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

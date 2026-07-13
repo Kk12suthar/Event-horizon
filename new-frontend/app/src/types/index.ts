@@ -70,6 +70,9 @@ export interface Session {
   status: 'active' | 'inactive' | 'initializing';
   createdAt: string;
   appName?: string;
+  selectedTableId?: string;
+  selectedTableName?: string;
+  transformRevision?: number;
   entities?: FolderEntities;
   raw?: unknown;
 }
@@ -85,6 +88,11 @@ export interface DataTable {
   isLoading?: boolean;
   hasMore?: boolean;
   page?: number;
+  revision?: number;
+  status?: 'ready' | 'inactive' | 'stale';
+  recipe?: string[];
+  sourceTables?: string[];
+  createdAt?: string;
 }
 
 // Chat message types
@@ -104,6 +112,7 @@ export interface ChatMessage {
   timestamp: string;
   metadata?: {
     toolName?: string;
+    callId?: string;
     toolStatus?: 'pending' | 'complete' | 'error';
     toolArgs?: unknown;
     toolResponse?: unknown;
@@ -119,19 +128,35 @@ export interface ChatMessage {
     /** Attached to the final agent message from the completion event. */
     tokenUsage?: TokenUsage;
     timeTaken?: number;
+    durationMs?: number;
+    success?: boolean;
+    artifact?: ChartWidget;
+    artifactStatus?: 'draft' | 'saving' | 'saved' | 'error';
   };
 }
 
 // Chart types
-export type ChartType = 'line' | 'bar' | 'area' | 'pie' | 'radial';
+export type ChartType = 'line' | 'bar' | 'area' | 'pie' | 'radial' | 'kpi';
 
 export interface ChartWidget {
   id: string;
+  artifact_type?: 'chart';
   name: string;
+  title?: string;
   type: ChartType;
   config: ChartConfig;
   data: ChartDataPoint[];
   position: { x: number; y: number; w: number; h: number };
+  sourceTableId?: string;
+  source_table_id?: string;
+  xField?: string;
+  yFields?: string[];
+  transformRevision?: number;
+  transform_revision?: number;
+  status?: 'draft' | 'ready' | 'error';
+  stale?: boolean;
+  createdAt?: string;
+  savedAt?: string;
 }
 
 export interface ChartConfig {
@@ -154,7 +179,7 @@ export interface ChartDataPoint {
 }
 
 // Report types
-export type ReportFormat = 'PPTX' | 'PDF' | 'DOCX' | 'XLSX';
+export type ReportFormat = 'PPTX' | 'PDF' | 'DOCX' | 'HTML';
 
 export interface GeneratedReport {
   id: string;
@@ -163,6 +188,19 @@ export interface GeneratedReport {
   status: 'generating' | 'ready' | 'error';
   createdAt: string;
   downloadUrl?: string;
+  downloadUrls?: Partial<Record<ReportFormat, string>>;
+  sourceTableId?: string;
+  transformRevision?: number;
+  body?: string;
+  sections?: Array<{
+    id: string;
+    title: string;
+    content: string;
+    chart_ids?: string[];
+    status?: string;
+    included?: boolean;
+  }>;
+  stale?: boolean;
 }
 
 // Workspace view models

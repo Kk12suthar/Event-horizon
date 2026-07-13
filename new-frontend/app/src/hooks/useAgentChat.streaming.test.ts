@@ -8,7 +8,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useAgentChat } from './useAgentChat';
-import type { Folder, Session, User, WorkspaceMode } from '../types';
+import type { DataTable, Folder, Session, User, WorkspaceMode } from '../types';
 
 let scriptedEvents: Record<string, unknown>[] = [];
 
@@ -33,8 +33,26 @@ const user: User = { id: 'user-1', name: 'Ada', email: 'ada@example.com', role: 
 const folder: Folder = { id: 'folder-1', name: 'Q1', description: '', status: 'Active', projectId: 'p1', projectName: 'Demo', createdBy: 'user-1', createdAt: '2024-01-01', accessLevel: 'full', entities: { tables: {}, files: {} } };
 const session: Session = { id: 'session-1', folderId: 'folder-1', folderName: 'Q1', projectName: 'Demo', status: 'active', createdAt: '2024-01-01' };
 
-function useChat() {
-  return useAgentChat({ folder, session, user, ensureSession: async () => session, onCompletion: () => {} });
+const selectedTable: DataTable = {
+  id: 'prepared-1',
+  name: 'prepared_sales',
+  source: 'agent_created',
+  columns: ['region', 'revenue'],
+  rows: [],
+  rowCount: 10,
+  revision: 2,
+};
+
+function useChat(mode: WorkspaceMode = 'prepare') {
+  return useAgentChat({
+    folder,
+    session,
+    user,
+    selectedTable,
+    mode,
+    ensureSession: async () => session,
+    onCompletion: () => {},
+  });
 }
 
 describe('useAgentChat sophisticated streaming', () => {
@@ -89,11 +107,48 @@ describe('useAgentChat sophisticated streaming', () => {
     expect(byType('transition')[1].content).toBe('Responder');
 
     // Minimal tool request/response with inspectable payloads.
-    expect(byType('tool_call')).toHaveLength(1);
-    expect(byType('tool_call')[0].metadata?.toolArgs).toEqual({ folder: 'x' });
+    expect(byType('tool_call')).toHaveLength(0);
     expect(byType('tool_response')).toHaveLength(1);
+    expect(byType('tool_response')[0].metadata?.toolArgs).toEqual({ folder: 'x' });
     expect(byType('tool_response')[0].metadata?.toolResponse).toBe('{"table_count":2}');
 
     expect(result.current.isGenerating).toBe(false);
   });
-});
+
+  it('sends selected-table scope and renders a transient chart artifact in Visualize', async () => {
+    scriptedEvents = [
+      {
+        type: 'artifact',
+        artifact_type: 'chart',
+        artifact: {
+          id: 'chart-draft-1',
+          artifact_type: 'chart',
+          type: 'bar',
+          name: 'Revenue by region',
+          status: 'draft',
+          sourceTableId: 'prepared-1',
+          transformRevision: 2,
+          data: [{ label: 'North', value: 42 }],
+          config: { primaryColor: '#F4F4F5', showGrid: true, showLegend: false, showTooltip: true },
+          position: { x: 0, y: 0, w: 12, h: 6 },
+        },
+      },
+      { type: 'completion', final_output: 'Here is a chart preview.', success: true },
+    ];
+
+    const { result } = renderHook(() => useChat('visualize'));
+    await act(async () => {
+      await result.current.send('chart revenue by region', 'visualize');
+    });
+
+    const body = streamSseMock.mock.calls[0][1] as Record<string, unknown>;
+    expect(body).toMatchObject({
+      surface: 'dashboard',
+      selected_table_id: 'prepared-1',
+      selected_table_name: 'prepared_sales',
+      selected_tables: ['prepared-1'],
+    });
+    const preview = result.current.messages.find((message) => message.type === 'chart_result');
+    expect(preview?.metadata?.artifactStatus).toBe('draft');
+    expect(preview?.metadata?.artifact?.name).toBe('Revenue by region');
+  });});

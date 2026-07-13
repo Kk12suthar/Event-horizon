@@ -27,6 +27,23 @@ class FakeProvider:
         return '{"table_count": 2}'
 
 
+class FakeReportProvider:
+    openai_tools = [
+        {"type": "function", "function": {"name": "report_get_data_summary", "description": "", "parameters": {}}},
+        {"type": "function", "function": {"name": "report_list_charts", "description": "", "parameters": {}}},
+    ]
+    tool_names = ["report_get_data_summary", "report_list_charts"]
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, dict]] = []
+
+    async def call(self, name: str, arguments: dict) -> str:
+        self.calls.append((name, arguments))
+        if name == "report_get_data_summary":
+            return '{"table_id": "t1", "estimated_row_count": 42}'
+        return '{"table_id": "t1", "chart_count": 1, "charts": []}'
+
+
 class StreamingAgentTests(unittest.TestCase):
     def test_tool_loop_captures_grounded_final_answer_and_totals_usage(self) -> None:
         # Scripted streaming turns: first a tool call, then a final content answer.
@@ -79,6 +96,74 @@ class StreamingAgentTests(unittest.TestCase):
         finally:
             builder.load_effective_model_config = original
         self.assertIn("No AI model is configured", message)
+
+
+    def test_report_loop_prefetches_required_evidence_before_model_answer(self) -> None:
+        observed_messages: list[list[dict]] = []
+
+        async def fake_astream_with_tools(messages, tools, model_config, on_reasoning=None):
+            observed_messages.append(messages)
+            return {"content": "Grounded report narrative.", "tool_calls": []}, {}
+
+        original = builder.astream_with_tools
+        builder.astream_with_tools = fake_astream_with_tools
+        try:
+            provider = FakeReportProvider()
+            state = {
+                "surface": "report",
+                "intent": "report",
+                "user_message": "Create a report",
+                "available_tables": [{"name": "prepared"}],
+                "folder_id": "f1",
+                "session_id": "s1",
+                "selected_table_id": "t1",
+                "selected_table_name": "prepared",
+            }
+            result = asyncio.run(builder._run_tool_loop(state, provider, model_config=object(), folder_id="f1"))
+        finally:
+            builder.astream_with_tools = original
+
+        self.assertEqual(result["final_response"], "Grounded report narrative.")
+        self.assertEqual([name for name, _ in provider.calls], ["report_get_data_summary", "report_list_charts"])
+        self.assertEqual(len(observed_messages), 1)
+        scratchpad = str(observed_messages[0])
+        self.assertIn("report_get_data_summary", scratchpad)
+        self.assertIn("report_list_charts", scratchpad)
+        self.assertIn("selected_table_id", scratchpad)
+
+    def test_report_loop_fails_closed_when_model_refuses_evidence_tools(self) -> None:
+        async def fake_astream_with_tools(messages, tools, model_config, on_reasoning=None):
+            return {"content": "Ungrounded draft.", "tool_calls": []}, {}
+
+        provider = FakeReportProvider()
+
+        async def failing_call(name: str, arguments: dict) -> str:
+            provider.calls.append((name, arguments))
+            return '{"error": "database unavailable"}'
+
+        provider.call = failing_call
+        original = builder.astream_with_tools
+        builder.astream_with_tools = fake_astream_with_tools
+        try:
+            result = asyncio.run(
+                builder._run_tool_loop(
+                    {
+                        "surface": "report",
+                        "intent": "report",
+                        "user_message": "Create a report",
+                        "folder_id": "f1",
+                    },
+                    provider,
+                    model_config=object(),
+                    folder_id="f1",
+                )
+            )
+        finally:
+            builder.astream_with_tools = original
+
+        self.assertIn("errors", result)
+        self.assertNotIn("Ungrounded draft", result.get("final_response", ""))
+        self.assertIn("required table and chart evidence", result["errors"][0]["message"])
 
 
 if __name__ == "__main__":

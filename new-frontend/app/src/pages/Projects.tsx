@@ -650,9 +650,30 @@ function FolderCard({ folder, canUpload, onOpenWorkspace, onInfo }: {
 }) {
   const pipeline = useFolderPipeline(folder, canUpload);
 
+  // The card body itself is the primary "open this folder" affordance: it
+  // always opens Prepare (the pipeline entry point, which also hosts
+  // upload). WorkflowActions remains for jumping straight to Visualize/
+  // Publish once they're unlocked.
+  const openDefault = () => {
+    if (pipeline.enabledModes.prepare) onOpenWorkspace(folder.id, 'prepare');
+  };
+
   return (
     <div
-      className="group flex h-full min-h-[216px] flex-col rounded-xl border border-[#2E2E2E] bg-[#151515]/95 p-5 shadow-[0_14px_40px_rgba(0,0,0,0.16)] transition-all hover:-translate-y-0.5 hover:border-[#525252] hover:shadow-[0_20px_55px_rgba(0,0,0,0.25)]"
+      role="button"
+      tabIndex={0}
+      onClick={openDefault}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openDefault();
+        }
+      }}
+      aria-label={`Open ${folder.name}`}
+      title={pipeline.enabledModes.prepare ? `Open ${folder.name}` : LOCKED_REASON.prepare}
+      className={`group flex h-full min-h-[216px] flex-col rounded-xl border border-[#2E2E2E] bg-[#151515]/95 p-5 shadow-[0_14px_40px_rgba(0,0,0,0.16)] transition-all hover:-translate-y-0.5 hover:border-[#525252] hover:shadow-[0_20px_55px_rgba(0,0,0,0.25)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#c16e43] ${
+        pipeline.enabledModes.prepare ? 'cursor-pointer' : 'cursor-not-allowed'
+      }`}
     >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3 min-w-0">
@@ -668,7 +689,10 @@ function FolderCard({ folder, canUpload, onOpenWorkspace, onInfo }: {
             }`}>{folder.status}</span>
           </div>
         </div>
-        <button onClick={onInfo} className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-[#8C8C8C] hover:text-white hover:bg-[#1E1E1E] transition-all">
+        <button
+          onClick={(e) => { e.stopPropagation(); onInfo(); }}
+          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-[#8C8C8C] hover:text-white hover:bg-[#1E1E1E] transition-all"
+        >
           <MoreHorizontal className="w-4 h-4" />
         </button>
       </div>
@@ -676,7 +700,7 @@ function FolderCard({ folder, canUpload, onOpenWorkspace, onInfo }: {
       <p className="mt-3 flex-1 text-sm leading-6 text-[#B8B8B8] line-clamp-3">{folder.description || 'No description provided.'}</p>
       <div className="mt-3 text-xs text-[#8C8C8C]">Created by {folder.createdBy} on {folder.createdAt}</div>
 
-      <div className="mt-4 flex items-center justify-between border-t border-[#2E2E2E] pt-4">
+      <div className="mt-4 flex items-center justify-between border-t border-[#2E2E2E] pt-4" onClick={(e) => e.stopPropagation()}>
         <WorkflowActions folder={folder} pipeline={pipeline} onOpen={onOpenWorkspace} />
       </div>
     </div>
@@ -693,8 +717,27 @@ function FolderRow({ folder, canUpload, onOpenWorkspace, onInfo, onDelete, canDe
 }) {
   const pipeline = useFolderPipeline(folder, canUpload);
 
+  const openDefault = () => {
+    if (pipeline.enabledModes.prepare) onOpenWorkspace(folder.id, 'prepare');
+  };
+
   return (
-    <tr className="border-b border-[#2E2E2E] last:border-0 hover:bg-[#1E1E1E] transition-colors">
+    <tr
+      onClick={openDefault}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openDefault();
+        }
+      }}
+      tabIndex={0}
+      role="button"
+      aria-label={`Open ${folder.name}`}
+      title={pipeline.enabledModes.prepare ? `Open ${folder.name}` : LOCKED_REASON.prepare}
+      className={`border-b border-[#2E2E2E] last:border-0 hover:bg-[#1E1E1E] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#c16e43] ${
+        pipeline.enabledModes.prepare ? 'cursor-pointer' : 'cursor-not-allowed'
+      }`}
+    >
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           <FolderOpen className="w-4 h-4 text-[#E4E4E7]" />
@@ -712,7 +755,7 @@ function FolderRow({ folder, canUpload, onOpenWorkspace, onInfo, onDelete, canDe
           {folder.status}
         </span>
       </td>
-      <td className="px-4 py-3">
+      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-end gap-1">
           <WorkflowActions folder={folder} pipeline={pipeline} onOpen={onOpenWorkspace} size="sm" />
           <DropdownMenu>

@@ -143,7 +143,7 @@ function InlineCreateForm({
           onClick={() => void handleSubmit()}
           disabled={!canSubmit}
           className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-40"
-          style={{ backgroundColor: SPACE.text, color: SPACE.bg }}
+          style={{ backgroundColor: SPACE.brand, color: SPACE.onBrand }}
         >
           {submitting && <Loader2 className="h-3 w-3 animate-spin" />}
           Create

@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PanelRight } from 'lucide-react';
 import { useAppState } from '@/hooks/useAppState';
@@ -6,7 +6,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePipelineStage } from '@/hooks/usePipelineStage';
 import { useAgentChat } from '@/hooks/useAgentChat';
 import { useFolderUpload } from '@/hooks/useFolderUpload';
-import type { ArtifactState, WorkspaceMode } from '@/types';
+import type { ArtifactState, ReportFormat, WorkspaceMode } from '@/types';
+import { AGENT_URL, downloadBlob } from '@/lib/api';
 import { SPACE } from './theme';
 import { WorkspaceTopbar } from './WorkspaceTopbar';
 import { ModeSwitcher } from './ModeSwitcher';
@@ -86,6 +87,8 @@ export function WorkspaceView() {
     tables,
     charts,
     reports,
+    selectedTable,
+    selectedTableId,
   } = appState;
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -123,7 +126,8 @@ export function WorkspaceView() {
     if (folderId && selectedFolder?.id !== folderId) {
       void appState.loadFolderContext(folderId);
     }
-  }, [appState, searchParams, selectedFolder?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appState.loadFolderContext, searchParams, selectedFolder?.id]);
 
   // Mirror the effective mode into the URL without clobbering other params.
   useEffect(() => {
@@ -139,9 +143,12 @@ export function WorkspaceView() {
     folder: selectedFolder,
     session: activeSession,
     user,
+    selectedTable,
+    mode,
     ensureSession: appState.ensureSession,
     onCompletion: () => {
       if (selectedFolder) void appState.loadTablesForFolder(selectedFolder);
+      void appState.refreshWorkspace();
     },
   });
 
@@ -177,6 +184,15 @@ export function WorkspaceView() {
     [appState],
   );
 
+  const handleDownloadReport = useCallback((format: ReportFormat) => {
+    const report = reports[reports.length - 1];
+    if (!report) return;
+    const path = report.downloadUrls?.[format] || (report.format === format ? report.downloadUrl : undefined);
+    if (!path) return;
+    const url = /^https?:\/\//i.test(path) ? path : `${AGENT_URL}${path.startsWith('/') ? path : `/${path}`}`;
+    const safeName = report.name.replace(/[^a-z0-9_-]+/gi, '-').replace(/^-|-$/g, '') || 'eventhorizon-report';
+    void downloadBlob(url, `${safeName}.${format.toLowerCase()}`);
+  }, [reports]);
   const handleSelectFolder = useCallback(
     (folderId: string) => {
       void appState.loadFolderContext(folderId);
@@ -230,7 +246,12 @@ export function WorkspaceView() {
 
         {/* Primary surface: the chat thread, or onboarding when no folder. */}
         {hasFolder ? (
-          <ChatThread messages={chat.messages} isGenerating={chat.isGenerating} />
+          <ChatThread
+            messages={chat.messages}
+            isGenerating={chat.isGenerating}
+            savedCharts={charts}
+            onSaveChart={appState.saveChart}
+          />
         ) : (
           <div className="flex flex-1 overflow-y-auto">
             <EmptyState onExampleSelect={handleSend} />
@@ -287,6 +308,13 @@ export function WorkspaceView() {
         pipeline={pipeline}
         isGenerating={chat.isGenerating}
         onLoadTablePage={handleLoadTablePage}
+        selectedTableId={selectedTableId}
+        onSelectPreparedTable={appState.selectPreparedTable}
+        onAddChart={() => {
+          void chat.send('Analyze the selected prepared table and create one useful chart or KPI preview.', 'visualize');
+        }}
+        onDeleteChart={appState.removeChart}
+        onDownloadReport={handleDownloadReport}
       />
 
       {/* When the panel is closed on desktop, a slim affordance keeps it

@@ -54,7 +54,11 @@ def save_workspace_model_config(config: dict[str, Any], updated_by: str | None =
                 ON CONFLICT (id) DO UPDATE SET
                     provider = EXCLUDED.provider,
                     model = EXCLUDED.model,
-                    encrypted_api_key = COALESCE(EXCLUDED.encrypted_api_key, instance01.agent_model_config.encrypted_api_key),
+                    encrypted_api_key = CASE
+                        WHEN EXCLUDED.encrypted_api_key IS NOT NULL THEN EXCLUDED.encrypted_api_key
+                        WHEN instance01.agent_model_config.provider IS DISTINCT FROM EXCLUDED.provider THEN NULL
+                        ELSE instance01.agent_model_config.encrypted_api_key
+                    END,
                     base_url = EXCLUDED.base_url,
                     site_url = EXCLUDED.site_url,
                     app_name = EXCLUDED.app_name,

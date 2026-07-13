@@ -12,6 +12,9 @@ class AgentState(TypedDict, total=False):
     query_id: str
     user_message: str
     selected_tables: list[str]
+    selected_table_id: Optional[str]
+    selected_table_name: Optional[str]
+    transform_revision: int
     available_tables: list[dict[str, Any]]
     tool_results: list[dict[str, Any]]
     artifacts: list[dict[str, Any]]

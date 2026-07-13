@@ -136,6 +136,7 @@ describe('Integration: SSE streaming renders the trail + single final message an
       folder,
       session,
       user,
+      mode: 'prepare' as WorkspaceMode,
       ensureSession: async () => session,
       onCompletion: () => {
         // Simulate "transform completed -> refresh folder tables" without reload.
@@ -180,11 +181,10 @@ describe('Integration: SSE streaming renders the trail + single final message an
     // final agent message despite final_response AND a completion fallback.
     expect(byType('user')).toHaveLength(1);
     expect(byType('activity')).toHaveLength(0);
-    expect(byType('tool_call')).toHaveLength(1);
-    expect(byType('tool_call')[0].metadata?.toolArgs).toEqual({ left: 'raw_a', right: 'raw_b' });
+    expect(byType('tool_call')).toHaveLength(0);
     expect(byType('tool_response')).toHaveLength(1);
-    expect(byType('tool_response')[0].metadata?.toolResponse).toEqual({ table: 'clean_table' });
-    expect(byType('agent')).toHaveLength(1);
+    expect(byType('tool_response')[0].metadata?.toolArgs).toEqual({ left: 'raw_a', right: 'raw_b' });
+    expect(byType('tool_response')[0].metadata?.toolResponse).toEqual({ table: 'clean_table' });    expect(byType('agent')).toHaveLength(1);
     expect(byType('agent')[0].content).toBe('Created a cleaned table.');
 
     // Arrival order is preserved: the single agent message lands after the trail.
@@ -215,6 +215,7 @@ describe('Integration: SSE streaming renders the trail + single final message an
         folder,
         session,
         user,
+        mode: 'visualize' as WorkspaceMode,
         ensureSession: async () => session,
         onCompletion: () => {},
       });

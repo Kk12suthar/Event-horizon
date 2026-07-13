@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import os
 import re
+import sys
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
 from contextlib import contextmanager
 from dataclasses import dataclass
 from decimal import Decimal
@@ -11,6 +15,16 @@ import psycopg2
 import psycopg2.extras
 
 from security.access import audit_tool_call, require_folder_access
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from shared.workspace_store import (
+    ensure_workspace_schema,
+    record_transform_with_cursor,
+    validate_session_context,
+)
 
 VALID_IDENTIFIER = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 SELECT_PATTERN = re.compile(r"^\s*select\b", re.IGNORECASE | re.DOTALL)
@@ -212,6 +226,7 @@ def _get_table_mapping(cfg: DatabaseConfig, folder_id: str) -> dict[str, str]:
                     SELECT table_name, COALESCE(friendly_name, table_name) AS friendly
                     FROM uploads.table_registry
                     WHERE REPLACE(LOWER(folder_id), '-', '') = %s
+                      AND COALESCE((metadata->>'active')::boolean, TRUE)
                     """,
                     (normalized,),
                 )
@@ -324,3 +339,159 @@ def _jsonable(value: Any) -> Any:
     if hasattr(value, "isoformat"):
         return value.isoformat()
     return value
+
+
+def validate_transform_select(folder_id: str | None, select_sql: str, user_id: str | None = None) -> str | None:
+    """Validate a prospective CTAS SELECT against this folder's table map."""
+    if not folder_id:
+        return "No folder_id provided."
+    require_folder_access(folder_id, user_id, min_level="ANALYST")
+    cfg = DatabaseConfig.from_env()
+    if not cfg.configured:
+        return "Postgres environment is not configured."
+    mapping = _get_table_mapping(cfg, folder_id)
+    if not mapping:
+        return "No source tables are available in this folder."
+    return _validate_select(select_sql, set(mapping.keys()))
+
+
+def create_transform_table(
+    *,
+    folder_id: str | None,
+    user_id: str | None,
+    session_id: str | None,
+    select_sql: str,
+    friendly_name: str = "prepared_data",
+    source_tables: list[str] | None = None,
+    recipe: list[str] | None = None,
+) -> dict[str, Any]:
+    """Create and register one active prepared-table revision transactionally."""
+    if not folder_id or not user_id or not session_id:
+        return {"error": "folder_id, user_id, and session_id are required."}
+    require_folder_access(folder_id, user_id, min_level="ANALYST")
+    validate_session_context(session_id, folder_id, user_id, min_level="ANALYST")
+    ensure_workspace_schema()
+
+    cfg = DatabaseConfig.from_env()
+    if not cfg.configured:
+        return {"error": "Postgres environment is not configured."}
+    mapping = _get_table_mapping(cfg, folder_id)
+    validation = _validate_select(select_sql, set(mapping.keys()))
+    if validation:
+        return {"error": validation}
+
+    referenced = {
+        _unquote_identifier(match.group(1)).lower()
+        for match in TABLE_REFERENCE_PATTERN.finditer(select_sql)
+    }
+    declared_sources = [str(value) for value in (source_tables or []) if str(value).strip()]
+    invalid_declared = [name for name in declared_sources if name.lower() not in {key.lower() for key in mapping}]
+    if invalid_declared:
+        return {"error": f"Source table(s) are outside this folder: {', '.join(invalid_declared)}."}
+
+    table_id = str(uuid.uuid4())
+    session_suffix = _normalize_folder_id(session_id)[:8]
+    base_name = _sanitize_identifier(friendly_name or "prepared_data")[:38]
+    friendly = f"{base_name}_{session_suffix}"[:55]
+
+    with _connect(cfg) as conn:
+        try:
+            _sync_folder_views(conn, cfg, folder_id, mapping)
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(
+                    "SELECT COALESCE(transform_revision, 0) AS revision FROM instance01.mtd_session_workspace WHERE session_id = %s::uuid",
+                    (session_id,),
+                )
+                revision_row = cur.fetchone()
+                revision = int((revision_row or {}).get("revision") or 0) + 1
+                physical = f"eh_{_normalize_folder_id(folder_id)[:10]}_{session_suffix}_r{revision}_{uuid.uuid4().hex[:6]}"[:63]
+
+                cur.execute("SET LOCAL statement_timeout = %s", (int(os.getenv("AGENT_SQL_TIMEOUT_MS", "30000")),))
+                folder_schema = _folder_schema(cfg, folder_id)
+                cur.execute(f"SET LOCAL search_path TO {_quote_identifier(folder_schema)}, {_quote_identifier(cfg.upload_schema)}")
+                cur.execute(
+                    f"CREATE TABLE {_quote_identifier(cfg.upload_schema)}.{_quote_identifier(physical)} AS {select_sql.strip().rstrip(';')}"
+                )
+                cur.execute(
+                    f"SELECT COUNT(*) AS row_count FROM {_quote_identifier(cfg.upload_schema)}.{_quote_identifier(physical)}"
+                )
+                row_count = int((cur.fetchone() or {}).get("row_count") or 0)
+                columns = _get_columns(cur, cfg.upload_schema, physical)
+                if not columns:
+                    raise RuntimeError("The prepared table has no columns.")
+
+                created_at = datetime.now(timezone.utc).isoformat()
+                metadata = {
+                    "table_id": table_id,
+                    "active": True,
+                    "revision": revision,
+                    "row_count": row_count,
+                    "columns": columns,
+                    "source_tables": declared_sources or sorted(referenced),
+                    "recipe": recipe or [],
+                    "created_at": created_at,
+                }
+                cur.execute(
+                    """
+                    UPDATE uploads.table_registry
+                    SET metadata = COALESCE(metadata, '{}'::jsonb) || %s::jsonb
+                    WHERE table_type = 'agent_created'
+                      AND REPLACE(LOWER(COALESCE(folder_id, '')), '-', '') = %s
+                      AND COALESCE(session_id, '') = %s
+                      AND COALESCE((metadata->>'active')::boolean, TRUE)
+                    """,
+                    (
+                        psycopg2.extras.Json({"active": False, "superseded_at": created_at}),
+                        _normalize_folder_id(folder_id),
+                        session_id,
+                    ),
+                )
+                cur.execute(
+                    """
+                    INSERT INTO uploads.table_registry(
+                        table_name, table_type, session_id, folder_id, created_at,
+                        created_by, is_protected, metadata, friendly_name
+                    ) VALUES (%s, 'agent_created', %s, %s, NOW(), %s, TRUE, %s::jsonb, %s)
+                    """,
+                    (
+                        physical,
+                        session_id,
+                        folder_id,
+                        user_id,
+                        psycopg2.extras.Json(metadata),
+                        friendly,
+                    ),
+                )
+                cur.execute(
+                    f"CREATE OR REPLACE VIEW {_quote_identifier(folder_schema)}.{_quote_identifier(friendly)} AS "
+                    f"SELECT * FROM {_quote_identifier(cfg.upload_schema)}.{_quote_identifier(physical)}"
+                )
+                artifact = {
+                    "id": table_id,
+                    "artifact_type": "transform_table",
+                    "type": "transform_table",
+                    "name": friendly,
+                    "table_id": table_id,
+                    "table_name": friendly,
+                    "source": "agent_created",
+                    "revision": revision,
+                    "transform_revision": revision,
+                    "row_count": row_count,
+                    "columns": columns,
+                    "source_tables": metadata["source_tables"],
+                    "recipe": metadata["recipe"],
+                    "status": "ready",
+                    "created_at": created_at,
+                }
+                record_transform_with_cursor(
+                    cur,
+                    session_id=session_id,
+                    folder_id=folder_id,
+                    artifact=artifact,
+                )
+            conn.commit()
+            audit_tool_call(user_id, folder_id, "create_transform_table")
+            return {"artifact": artifact, "validation": {"passed": True, "column_count": len(columns), "row_count": row_count}}
+        except Exception as exc:
+            conn.rollback()
+            return {"error": f"Prepared table creation failed: {exc}"}

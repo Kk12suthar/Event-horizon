@@ -32,10 +32,23 @@ _MAX_RESULT_CHARS = 8000
 class InProcessToolProvider:
     """A drop-in replacement for ``MCPSession`` backed by direct handler calls."""
 
-    def __init__(self, user_id: str | None, folder_id: str | None):
+    def __init__(
+        self,
+        user_id: str | None,
+        folder_id: str | None,
+        *,
+        surface: str,
+        session_id: str | None = None,
+        selected_table_id: str | None = None,
+        selected_table_name: str | None = None,
+    ):
         self._user_id = user_id
         self._folder_id = folder_id
-        self.openai_tools = openai_tool_schemas()
+        self._surface = surface
+        self._session_id = session_id
+        self._selected_table_id = selected_table_id
+        self._selected_table_name = selected_table_name
+        self.openai_tools = openai_tool_schemas(surface, include_context=False)
 
     @property
     def tool_names(self) -> list[str]:
@@ -46,9 +59,14 @@ class InProcessToolProvider:
         spec = TOOLS_BY_NAME.get(name)
         if spec is None:
             return f"Unknown tool '{name}'."
+        if spec.surfaces and self._surface not in spec.surfaces:
+            return f"Tool '{name}' is not available on the {self._surface} surface."
         args = dict(arguments or {})
         # Force folder scope and trusted identity - never model-controlled.
         args[FOLDER_SCOPED_ARG] = self._folder_id
+        args["session_id"] = self._session_id
+        args["selected_table_id"] = self._selected_table_id
+        args["selected_table_name"] = self._selected_table_name
         args.pop("user_id", None)
         try:
             result = spec.handler(user_id=self._user_id, **args)

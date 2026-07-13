@@ -1,5 +1,5 @@
-﻿import { lazy, Suspense, type ComponentType } from 'react';
-import { Database, Wand2, BarChart3, FileText, X, type LucideIcon } from 'lucide-react';
+import { lazy, Suspense, useCallback, useRef, useState, type ComponentType } from 'react';
+import { Database, Wand2, BarChart3, FileText, X, UploadCloud, Loader2, CheckCircle2, AlertCircle, type LucideIcon } from 'lucide-react';
 import type {
   ArtifactState,
   DataTable,
@@ -66,6 +66,126 @@ export interface ArtifactPanelProps {
   isGenerating?: boolean;
   /** Load one page of a table's rows (drives the interactive table browser). */
   onLoadTablePage?: (tableId: string, page: number) => Promise<DataTable | null>;
+  selectedTableId?: string | null;
+  onSelectPreparedTable?: (tableId: string) => Promise<void>;
+  onAddChart?: (suggestionId?: string) => void;
+  onDeleteChart?: (chartId: string) => Promise<void>;
+  onDownloadReport?: (format: import('../../types').ReportFormat) => void;
+}
+
+/** Accepted file extensions for the compact upload dropzone. */
+const COMPACT_ACCEPT = '.csv,.xls,.xlsx';
+const COMPACT_EXTENSIONS = ['.csv', '.xls', '.xlsx'] as const;
+
+/**
+ * Compact upload section shown in prepare mode when tables already exist,
+ * so users can always add more files without switching modes.
+ */
+function CompactUpload({
+  disabled,
+  onFilesSelected,
+  progress = 0,
+  stage = 'idle',
+  error,
+}: {
+  disabled: boolean;
+  onFilesSelected: (files: File[]) => void;
+  progress?: number;
+  stage?: 'idle' | 'uploading' | 'creating' | 'complete' | 'error';
+  error?: string | null;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
+
+  const emit = useCallback(
+    (fileList: FileList | null) => {
+      if (!fileList || disabled) return;
+      const accepted = Array.from(fileList).filter((f) =>
+        COMPACT_EXTENSIONS.some((ext) => f.name.toLowerCase().endsWith(ext)),
+      );
+      if (accepted.length > 0) onFilesSelected(accepted);
+    },
+    [disabled, onFilesSelected],
+  );
+
+  const showStatus = stage !== 'idle';
+  const statusLabel =
+    stage === 'uploading'
+      ? `Uploading… ${Math.round(progress)}%`
+      : stage === 'creating'
+        ? 'Creating tables…'
+        : stage === 'complete'
+          ? 'Upload complete'
+          : stage === 'error'
+            ? error || 'Upload failed'
+            : '';
+
+  return (
+    <div
+      className="flex-shrink-0 px-4 pt-3 pb-2"
+      style={{ borderBottom: `1px solid ${SPACE.border}` }}
+    >
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && inputRef.current?.click()}
+        onDragOver={(e) => {
+          if (disabled) return;
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          if (disabled) return;
+          e.preventDefault();
+          setDragging(false);
+          emit(e.dataTransfer.files);
+        }}
+        className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed px-3 py-2.5 text-xs outline-none transition-colors focus-visible:ring-1"
+        style={{
+          borderColor: dragging ? SPACE.text : SPACE.border,
+          backgroundColor: dragging ? SPACE.hover : 'transparent',
+          color: SPACE.muted,
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          opacity: disabled ? 0.4 : 1,
+        }}
+        onMouseEnter={(e) => {
+          if (disabled || dragging) return;
+          e.currentTarget.style.borderColor = SPACE.muted;
+          e.currentTarget.style.backgroundColor = SPACE.hover;
+        }}
+        onMouseLeave={(e) => {
+          if (disabled || dragging) return;
+          e.currentTarget.style.borderColor = SPACE.border;
+          e.currentTarget.style.backgroundColor = 'transparent';
+        }}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          accept={COMPACT_ACCEPT}
+          className="hidden"
+          onChange={(e) => {
+            emit(e.target.files);
+            e.target.value = '';
+          }}
+        />
+        <UploadCloud className="h-4 w-4" strokeWidth={1.75} />
+        <span style={{ color: SPACE.text }}>Add more files</span>
+        <span style={{ color: SPACE.subtle }}>(.csv, .xls, .xlsx)</span>
+      </button>
+
+      {showStatus && (
+        <div className="mt-2 flex items-center gap-2 text-xs" style={{ color: stage === 'error' ? SPACE.danger : SPACE.muted }}>
+          {stage === 'creating' && <Loader2 className="h-3 w-3 animate-spin" />}
+          {stage === 'complete' && <CheckCircle2 className="h-3 w-3" style={{ color: SPACE.success }} />}
+          {stage === 'error' && <AlertCircle className="h-3 w-3" />}
+          <span>{statusLabel}</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ArtifactLoading() {
@@ -91,10 +211,9 @@ function sourceTables(artifact?: ArtifactState): DataTable[] {
   return (artifact?.tables ?? []).filter((table) => table.source === 'uploaded');
 }
 
-function transformedTable(artifact?: ArtifactState): DataTable | null {
-  return (artifact?.tables ?? []).find((table) => table.source === 'agent_created') ?? null;
+function transformedTables(artifact?: ArtifactState): DataTable[] {
+  return (artifact?.tables ?? []).filter((table) => table.source === 'agent_created');
 }
-
 export function ArtifactPanel({
   mode,
   open,
@@ -111,12 +230,18 @@ export function ArtifactPanel({
   pipeline,
   isGenerating = false,
   onLoadTablePage,
+  selectedTableId,
+  onSelectPreparedTable,
+  onAddChart,
+  onDeleteChart,
+  onDownloadReport,
 }: ArtifactPanelProps) {
   if (!open) return null;
 
   const { title, icon: Icon } = variantForMode(mode);
   const uploadedTables = sourceTables(artifact);
-  const preparedTable = transformedTable(artifact);
+  const preparedTables = transformedTables(artifact);
+  const preparedTable = preparedTables.find((table) => table.id === selectedTableId) || preparedTables[0] || null;
 
   const renderVariant = () => {
     switch (mode) {
@@ -153,15 +278,37 @@ export function ArtifactPanel({
           );
         }
         return (
-          <TableArtifact
-            state={isGenerating ? 'running' : 'ready'}
-            table={preparedTable}
-            sourceTables={uploadedTables}
-            onLoadTablePage={onLoadTablePage}
-          />
+          <div className="flex h-full flex-col overflow-y-auto" style={{ backgroundColor: SPACE.panelAlt }}>
+            {/* Compact upload section so users can always add more tables */}
+            <CompactUpload
+              disabled={!hasFolder}
+              onFilesSelected={onUpload}
+              progress={uploadProgress}
+              stage={uploadError ? 'error' : uploadStage}
+              error={uploadError}
+            />
+            <TableArtifact
+              state={isGenerating ? 'running' : 'ready'}
+              table={preparedTable}
+              preparedTables={preparedTables}
+              selectedTableId={selectedTableId}
+              onSelectTable={onSelectPreparedTable}
+              recipe={preparedTable?.recipe || []}
+              sourceTables={uploadedTables}
+              onLoadTablePage={onLoadTablePage}
+            />
+          </div>
         );
       case 'visualize':
-        return <ChartArtifact artifact={artifact} mode={mode} onClose={onClose} />;
+        return (
+          <ChartArtifact
+            artifact={artifact}
+            mode={mode}
+            onClose={onClose}
+            onAddChart={onAddChart}
+            onDeleteChart={onDeleteChart}
+          />
+        );
       case 'publish':
         return (
           <ReportArtifact
@@ -169,6 +316,7 @@ export function ArtifactPanel({
             mode={mode}
             onClose={onClose}
             state={pipeline.hasTransformTable ? undefined : 'disabled'}
+            onDownload={onDownloadReport}
           />
         );
     }

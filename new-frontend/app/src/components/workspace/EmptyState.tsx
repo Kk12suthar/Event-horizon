@@ -74,8 +74,8 @@ export function EmptyState({
           <button
             type="button"
             onClick={onPickFolder}
-            className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors hover:brightness-95"
-            style={{ backgroundColor: SPACE.text, color: SPACE.bg }}
+            className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-[filter] hover:brightness-110"
+            style={{ backgroundColor: SPACE.brand, color: SPACE.onBrand }}
           >
             <FolderOpen className="h-4 w-4" />
             Pick a folder

@@ -32,6 +32,7 @@ import {
   TrendingDown,
   Minus,
   Loader2,
+  Trash2,
   type LucideIcon,
 } from 'lucide-react';
 import type { ArtifactState, ChartType, ChartWidget, WorkspaceMode } from '../../../types';
@@ -52,7 +53,7 @@ import { SPACE } from '../theme';
  *                trail lives in the chat thread, not here) (Req 8.4).
  *  - `ready`:    charts render cleanly and **not oversized** - every chart sits
  *                in a fixed-height responsive container (Req 8.5).
- *  - `error`:    a coral inline error with a retry action (Req 8.6).
+ *  - `error`:    a neutral inline error with a retry action (Req 8.6).
  *
  * Charts are drawn with `recharts` (already a dependency, used by
  * `components/ui/chart.tsx`) via `ResponsiveContainer` at a fixed height so they
@@ -70,7 +71,7 @@ import { SPACE } from '../theme';
  * Requirements: 8.1 (KPI strip, chart canvas/grid, chart list, selected-chart
  * inspector, suggestions, Add chart/Regenerate), 8.2 (gating handled upstream),
  * 8.3 (empty → suggestions), 8.4 (skeleton while generating), 8.5 (clean, not
- * oversized), 8.6 (coral inline error + retry).
+ * oversized), 8.6 (neutral inline error + retry).
  */
 
 /** Visual state of the Visualize artifact panel. */
@@ -78,6 +79,8 @@ export type ChartArtifactState = 'empty' | 'skeleton' | 'ready' | 'error';
 
 /** A single KPI in the top strip. */
 export interface KpiItem {
+  id?: string;
+  stale?: boolean;
   /** Metric label, e.g. "Total revenue". */
   label: string;
   /** Formatted metric value, e.g. "$1.2M" or 4821. */
@@ -123,6 +126,8 @@ export interface ChartArtifactProps {
   onRegenerate?: (chartId?: string) => void;
   /** Select a chart for the inspector. */
   onSelectChart?: (chartId: string) => void;
+  /** Delete a persisted chart from this session dashboard. */
+  onDeleteChart?: (chartId: string) => Promise<void> | void;
   /** Retry after an error (defaults to {@link onRegenerate} when omitted). */
   onRetry?: () => void;
   /** Close affordance - accepted for the ArtifactPanel variant contract. */
@@ -143,6 +148,8 @@ function chartColor(chart: ChartWidget): string {
 /** Maps a chart type to its lucide icon (used in the list + suggestions). */
 function chartTypeIcon(type?: ChartType): LucideIcon {
   switch (type) {
+    case 'kpi':
+      return Activity;
     case 'line':
       return LineChartIcon;
     case 'area':
@@ -206,14 +213,14 @@ function ActionButton({
       disabled={!onClick}
       className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium outline-none transition-colors focus-visible:ring-1 disabled:opacity-40"
       style={{
-        backgroundColor: primary ? SPACE.text : 'transparent',
-        color: primary ? SPACE.bg : SPACE.muted,
+        backgroundColor: primary ? SPACE.brand : 'transparent',
+        color: primary ? SPACE.onBrand : SPACE.muted,
         border: primary ? 'none' : `1px solid ${SPACE.border}`,
         cursor: onClick ? 'pointer' : 'not-allowed',
       }}
       onMouseEnter={(e) => {
         if (!onClick) return;
-        if (primary) e.currentTarget.style.backgroundColor = '#D4D4D8';
+        if (primary) e.currentTarget.style.backgroundColor = SPACE.brandHover;
         else {
           e.currentTarget.style.backgroundColor = SPACE.hover;
           e.currentTarget.style.color = SPACE.text;
@@ -221,7 +228,7 @@ function ActionButton({
       }}
       onMouseLeave={(e) => {
         if (!onClick) return;
-        if (primary) e.currentTarget.style.backgroundColor = SPACE.text;
+        if (primary) e.currentTarget.style.backgroundColor = SPACE.brand;
         else {
           e.currentTarget.style.backgroundColor = 'transparent';
           e.currentTarget.style.color = SPACE.muted;
@@ -251,7 +258,7 @@ const TOOLTIP_STYLES = {
  * Render a single chart's body inside a fixed-height ResponsiveContainer so it
  * fills the available width but never grows oversized (Requirement 8.5).
  */
-function ChartCanvas({ chart, height = 180 }: { chart: ChartWidget; height?: number }) {
+export function ChartCanvas({ chart, height = 180 }: { chart: ChartWidget; height?: number }) {
   const color = chartColor(chart);
   const { config, data, type } = chart;
   const showGrid = config?.showGrid ?? true;
@@ -269,6 +276,26 @@ function ChartCanvas({ chart, height = 180 }: { chart: ChartWidget; height?: num
     );
   }
 
+  if (type === 'kpi') {
+    const point = data[0];
+    const formatted = new Intl.NumberFormat(undefined, {
+      notation: Math.abs(point.value) >= 10000 ? 'compact' : 'standard',
+      maximumFractionDigits: 2,
+    }).format(point.value);
+    return (
+      <div className="flex h-full min-h-[112px] flex-col justify-between py-1">
+        <span className="text-[11px] font-medium uppercase tracking-wide" style={{ color: SPACE.subtle }}>
+          {point.label || chart.name}
+        </span>
+        <strong className="break-words text-3xl font-semibold" style={{ color: SPACE.text }}>
+          {formatted}
+        </strong>
+        <span className="text-[11px]" style={{ color: SPACE.muted }}>
+          From the selected prepared table
+        </span>
+      </div>
+    );
+  }
   const axisProps = {
     stroke: SPACE.subtle,
     tick: { fill: SPACE.muted, fontSize: 10 },
@@ -363,7 +390,13 @@ function ChartCanvas({ chart, height = 180 }: { chart: ChartWidget; height?: num
 }
 
 /** The KPI strip - a horizontally scrollable row of metric cards. */
-function KpiStrip({ kpis }: { kpis: KpiItem[] }) {
+function KpiStrip({
+  kpis,
+  onDelete,
+}: {
+  kpis: KpiItem[];
+  onDelete?: (id: string) => Promise<void> | void;
+}) {
   return (
     <div className="flex gap-2 overflow-x-auto px-4 pt-4">
       {kpis.map((kpi, i) => {
@@ -377,12 +410,31 @@ function KpiStrip({ kpis }: { kpis: KpiItem[] }) {
             className="min-w-[120px] flex-1 rounded-lg px-3 py-2.5"
             style={{ backgroundColor: SPACE.panel, border: `1px solid ${SPACE.border}` }}
           >
-            <div className="truncate text-[11px]" style={{ color: SPACE.muted }}>
-              {kpi.label}
+            <div className="flex items-start gap-1">
+              <div className="min-w-0 flex-1 truncate text-[11px]" style={{ color: SPACE.muted }}>
+                {kpi.label}
+              </div>
+              {kpi.id && onDelete && (
+                <button
+                  type="button"
+                  onClick={() => void onDelete(kpi.id!)}
+                  className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded outline-none transition-colors"
+                  style={{ color: SPACE.subtle }}
+                  aria-label={`Delete ${kpi.label}`}
+                  title="Delete KPI"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              )}
             </div>
             <div className="mt-0.5 text-lg font-semibold" style={{ color: SPACE.text }}>
               {kpi.value}
             </div>
+            {kpi.stale && (
+              <div className="mt-0.5 text-[10px]" style={{ color: SPACE.subtle }}>
+                Out of date
+              </div>
+            )}
             {kpi.delta && (
               <div className="mt-0.5 flex items-center gap-1 text-[11px]" style={{ color: trendColor }}>
                 <TrendIcon className="h-3 w-3" />
@@ -528,6 +580,7 @@ export function ChartArtifact({
   onAddChart,
   onRegenerate,
   onSelectChart,
+  onDeleteChart,
   onRetry,
 }: ChartArtifactProps) {
   const charts = useMemo(
@@ -535,15 +588,33 @@ export function ChartArtifact({
     [chartsProp, artifact],
   );
 
+  const kpiCharts = useMemo(() => charts.filter((chart) => chart.type === 'kpi'), [charts]);
+  const visualCharts = useMemo(() => charts.filter((chart) => chart.type !== 'kpi'), [charts]);
+  const resolvedKpis = useMemo<KpiItem[]>(
+    () => [
+      ...kpis,
+      ...kpiCharts.map((chart) => ({
+        id: chart.id,
+        stale: chart.stale,
+        label: chart.name,
+        value: new Intl.NumberFormat(undefined, {
+          notation: Math.abs(chart.data[0]?.value || 0) >= 10000 ? 'compact' : 'standard',
+          maximumFractionDigits: 2,
+        }).format(chart.data[0]?.value || 0),
+      })),
+    ],
+    [kpiCharts, kpis],
+  );
+
   // Derive the state when not explicitly provided.
   const resolvedState: ChartArtifactState = state ?? (charts.length === 0 ? 'empty' : 'ready');
 
   const selectedChart = useMemo(
-    () => charts.find((c) => c.id === selectedChartId) ?? charts[0] ?? null,
-    [charts, selectedChartId],
+    () => visualCharts.find((chart) => chart.id === selectedChartId) ?? visualCharts[0] ?? null,
+    [selectedChartId, visualCharts],
   );
 
-  // --- Error: coral inline error + retry (Requirement 8.6) ---
+  // --- Error: neutral inline error + retry (Requirement 8.6) ---
   if (resolvedState === 'error') {
     return (
       <div
@@ -553,7 +624,7 @@ export function ChartArtifact({
         <div
           className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl"
           style={{
-            backgroundColor: 'rgba(249, 112, 102, 0.1)',
+            backgroundColor: 'rgba(244, 244, 245, 0.06)',
             border: `1px solid ${SPACE.danger}`,
             color: SPACE.danger,
           }}
@@ -577,7 +648,7 @@ export function ChartArtifact({
   if (resolvedState === 'skeleton') {
     return (
       <div className="flex h-full flex-col overflow-y-auto" style={{ backgroundColor: SPACE.panelAlt }}>
-        {kpis.length > 0 && <KpiStrip kpis={kpis} />}
+        {resolvedKpis.length > 0 && <KpiStrip kpis={resolvedKpis} onDelete={onDeleteChart} />}
         <ChartSkeletonGrid />
       </div>
     );
@@ -587,7 +658,7 @@ export function ChartArtifact({
   if (resolvedState === 'empty') {
     return (
       <div className="flex h-full flex-col overflow-y-auto" style={{ backgroundColor: SPACE.panelAlt }}>
-        {kpis.length > 0 && <KpiStrip kpis={kpis} />}
+        {resolvedKpis.length > 0 && <KpiStrip kpis={resolvedKpis} onDelete={onDeleteChart} />}
 
         <div className="flex flex-col items-center px-8 pt-8 text-center">
           <div
@@ -637,7 +708,7 @@ export function ChartArtifact({
           Dashboard
         </span>
         <span className="text-[11px]" style={{ color: SPACE.subtle }}>
-          {charts.length} chart{charts.length === 1 ? '' : 's'}
+          {charts.length} saved item{charts.length === 1 ? '' : 's'}
         </span>
         <div className="ml-auto flex items-center gap-1.5">
           <ActionButton
@@ -656,7 +727,7 @@ export function ChartArtifact({
       </div>
 
       {/* KPI strip */}
-      {kpis.length > 0 && <KpiStrip kpis={kpis} />}
+      {resolvedKpis.length > 0 && <KpiStrip kpis={resolvedKpis} onDelete={onDeleteChart} />}
 
       {/* Selected-chart inspector (larger, on top) */}
       {selectedChart && (
@@ -674,9 +745,9 @@ export function ChartArtifact({
       )}
 
       {/* Chart canvas/grid (all charts, compact) */}
-      <SectionLabel icon={BarChart3}>Charts</SectionLabel>
+      {visualCharts.length > 0 && <SectionLabel icon={BarChart3}>Charts</SectionLabel>}
       <div className="grid grid-cols-1 gap-2 px-4">
-        {charts.map((chart) => (
+        {visualCharts.map((chart) => (
           <div
             key={chart.id}
             className="rounded-lg p-3 transition-colors"
@@ -689,6 +760,14 @@ export function ChartArtifact({
               <span className="truncate text-xs font-medium" style={{ color: SPACE.text }}>
                 {chart.name}
               </span>
+              {chart.stale && (
+                <span
+                  className="flex-shrink-0 rounded border px-1.5 py-0.5 text-[10px]"
+                  style={{ borderColor: SPACE.border, color: SPACE.subtle }}
+                >
+                  Out of date
+                </span>
+              )}
               <div className="ml-auto flex items-center gap-1">
                 <button
                   type="button"
@@ -707,6 +786,23 @@ export function ChartArtifact({
                 >
                   <RotateCw className="h-3.5 w-3.5" />
                 </button>
+                <button
+                  type="button"
+                  onClick={onDeleteChart ? () => void onDeleteChart(chart.id) : undefined}
+                  disabled={!onDeleteChart}
+                  aria-label={`Delete ${chart.name}`}
+                  title="Delete chart"
+                  className="rounded-md p-1 outline-none transition-colors disabled:opacity-40"
+                  style={{ color: SPACE.muted, cursor: onDeleteChart ? 'pointer' : 'not-allowed' }}
+                  onMouseEnter={(event) => {
+                    if (onDeleteChart) event.currentTarget.style.color = SPACE.text;
+                  }}
+                  onMouseLeave={(event) => {
+                    if (onDeleteChart) event.currentTarget.style.color = SPACE.muted;
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
               </div>
             </div>
             <ChartCanvas chart={chart} height={160} />
@@ -715,11 +811,11 @@ export function ChartArtifact({
       </div>
 
       {/* Chart list (compact, selectable) */}
-      {charts.length > 0 && (
+      {visualCharts.length > 0 && (
         <>
-          <SectionLabel>All charts ({charts.length})</SectionLabel>
+          <SectionLabel>All charts ({visualCharts.length})</SectionLabel>
           <div className="space-y-1.5 px-4">
-            {charts.map((chart) => (
+            {visualCharts.map((chart) => (
               <ChartListRow
                 key={chart.id}
                 chart={chart}

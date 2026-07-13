@@ -24,6 +24,7 @@ Run over HTTP:
 
 from __future__ import annotations
 
+import inspect
 import os
 import sys
 from pathlib import Path
@@ -48,7 +49,7 @@ except Exception:  # dotenv is optional at runtime
 from mcp.server.fastmcp import FastMCP
 
 from tools.postgres import DatabaseConfig
-from tools.data_tools import run_tool
+from tools.data_tools import DATA_TOOLS, run_tool
 
 INSTRUCTIONS = """EventHorizon Data MCP server.
 
@@ -198,6 +199,73 @@ def data_profile_nulls(folder_id: FolderId, table_name: TableName) -> dict[str, 
     """Count NULL values per column (first 15 columns) for a quick data-quality check."""
     return _run("data_profile_nulls", folder_id, table_name=table_name)
 
+
+_MANUAL_TOOLS = {
+    "data_list_tables",
+    "data_describe_tables",
+    "data_row_count",
+    "data_aggregate",
+    "data_column_stats",
+    "data_sample_rows",
+    "data_search",
+    "data_run_query",
+    "data_profile_nulls",
+}
+
+
+def _python_annotation(schema: dict[str, Any]) -> Any:
+    kind = schema.get("type")
+    if kind == "integer":
+        return int
+    if kind == "number":
+        return float
+    if kind == "boolean":
+        return bool
+    if kind == "array":
+        return list[str]
+    if kind == "object":
+        return dict[str, Any]
+    return str
+
+
+def _register_registry_tool(spec: Any) -> None:
+    properties = dict(spec.parameters.get("properties") or {})
+    required = set(spec.parameters.get("required") or [])
+
+    def dispatch(**arguments: Any) -> dict[str, Any]:
+        folder_id = str(arguments.pop("folder_id", "") or "")
+        return _run(spec.name, folder_id, **arguments)
+
+    dispatch.__name__ = spec.name
+    dispatch.__doc__ = spec.description
+    ordered = [key for key in properties if key in required] + [key for key in properties if key not in required]
+    parameters = []
+    annotations: dict[str, Any] = {}
+    for key in ordered:
+        annotation = _python_annotation(properties[key])
+        annotations[key] = annotation
+        parameters.append(
+            inspect.Parameter(
+                key,
+                inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                default=inspect.Parameter.empty if key in required else None,
+                annotation=annotation,
+            )
+        )
+    dispatch.__annotations__ = {**annotations, "return": dict[str, Any]}
+    dispatch.__signature__ = inspect.Signature(parameters, return_annotation=dict[str, Any])
+    mcp.tool(
+        name=spec.name,
+        title=spec.title,
+        description=spec.description,
+        annotations=spec.annotations,
+        structured_output=True,
+    )(dispatch)
+
+
+for _spec in DATA_TOOLS:
+    if _spec.name not in _MANUAL_TOOLS:
+        _register_registry_tool(_spec)
 
 def main() -> None:
     """Entry point. Honors MCP_TRANSPORT (stdio default, 'http' for remote)."""

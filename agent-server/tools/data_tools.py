@@ -22,8 +22,10 @@ returns a JSON-serialisable ``dict``.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Callable
+import copy
+from typing import Any
+
+from tools.spec import ToolSpec
 
 from tools.postgres import (
     _quote_identifier,
@@ -44,17 +46,6 @@ MAX_PROFILE_COLUMNS = 15
 
 _VALID_OPS = {"count", "count_distinct", "sum", "avg", "min", "max"}
 
-
-@dataclass(frozen=True)
-class ToolSpec:
-    """One data tool: schema + handler, consumed by MCP and the agent alike."""
-
-    name: str
-    title: str
-    description: str
-    parameters: dict[str, Any]
-    handler: Callable[..., dict[str, Any]]
-    annotations: dict[str, Any] = field(default_factory=dict)
 
 
 def _clamp(value: Any, default: int, maximum: int) -> int:
@@ -366,18 +357,50 @@ DATA_TOOLS: list[ToolSpec] = [
     ),
 ]
 
+from tools.prepare_tools import PREPARE_TOOLS
+from tools.report_tools import REPORT_TOOLS
+from tools.visualize_tools import VISUALIZE_TOOLS
+
+DATA_TOOLS.extend(PREPARE_TOOLS)
+DATA_TOOLS.extend(VISUALIZE_TOOLS)
+DATA_TOOLS.extend(REPORT_TOOLS)
+
 TOOLS_BY_NAME: dict[str, ToolSpec] = {tool.name: tool for tool in DATA_TOOLS}
 
 
-def openai_tool_schemas() -> list[dict[str, Any]]:
-    """Return the OpenAI/LiteLLM function schemas for all data tools."""
-    return [
-        {"type": "function", "function": {"name": t.name, "description": t.description, "parameters": t.parameters}}
-        for t in DATA_TOOLS
+_CONTEXT_ARGUMENTS = {"folder_id", "session_id", "selected_table_id", "selected_table_name", "user_id"}
+
+
+def openai_tool_schemas(surface: str | None = None, *, include_context: bool = True) -> list[dict[str, Any]]:
+    """Return function schemas filtered to the active workspace surface."""
+    selected = [
+        tool
+        for tool in DATA_TOOLS
+        if surface is None or not tool.surfaces or surface in tool.surfaces
     ]
+    schemas: list[dict[str, Any]] = []
+    for tool in selected:
+        parameters = copy.deepcopy(tool.parameters)
+        if not include_context:
+            properties = parameters.get("properties") or {}
+            for key in _CONTEXT_ARGUMENTS:
+                properties.pop(key, None)
+            parameters["required"] = [
+                key for key in (parameters.get("required") or []) if key not in _CONTEXT_ARGUMENTS
+            ]
+        schemas.append(
+            {
+                "type": "function",
+                "function": {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "parameters": parameters,
+                },
+            }
+        )
+    return schemas
 
-
-def run_tool(name: str, folder_id: str | None, user_id: str | None = None, **arguments: Any) -> dict[str, Any]:
+def run_tool(name: str, folder_id: str | None, user_id: str | None = None, surface: str | None = None, **arguments: Any) -> dict[str, Any]:
     """Dispatch a data tool by name through the shared registry.
 
     Shared entry point for both the MCP server and any other host: it forces the
@@ -387,6 +410,8 @@ def run_tool(name: str, folder_id: str | None, user_id: str | None = None, **arg
     spec = TOOLS_BY_NAME.get(name)
     if spec is None:
         return {"error": f"Unknown tool '{name}'."}
+    if surface and spec.surfaces and surface not in spec.surfaces:
+        return {"error": f"Tool '{name}' is not available on the {surface} surface."}
     arguments.pop("folder_id", None)
     arguments.pop("user_id", None)
     return spec.handler(folder_id=folder_id, user_id=user_id, **arguments)

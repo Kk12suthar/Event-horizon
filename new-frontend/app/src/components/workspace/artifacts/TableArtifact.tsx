@@ -1,4 +1,4 @@
-﻿import {
+import {
   Wand2,
   Table2,
   ListChecks,
@@ -8,7 +8,6 @@
   AlertTriangle,
   Loader2,
   RotateCw,
-  Save,
   Search,
   Database,
   type LucideIcon,
@@ -26,7 +25,7 @@ import { TableBrowser } from './TableBrowser';
  *                data." with the Rerun action available to kick one off.
  *  - `running`:  a transform is in flight - table skeleton (the live activity
  *                trail lives in the chat thread, not here).
- *  - `error`:    a coral error panel with a retry action.
+ *  - `error`:    a neutral error panel with a retry action.
  * When a transform has completed, pass `state="ready"` together with a `table`
  * and the supporting metadata; the final transformed table becomes the main
  * artifact (Requirement 7.5) alongside source tables, the recipe/steps, data
@@ -36,7 +35,7 @@ import { TableBrowser } from './TableBrowser';
  *
  * Requirements: 7.1 (preview, source tables, recipe, quality checks, column
  * mapping, Rerun/Save/Inspect), 7.2 (disabled), 7.3 (ready), 7.4 (running
- * skeleton), 7.5 (completed table as main artifact), 7.6 (coral error + retry).
+ * skeleton), 7.5 (completed table as main artifact), 7.6 (neutral error + retry).
  */
 
 /** Visual state of the Prepare artifact panel. */
@@ -65,6 +64,12 @@ export interface TableArtifactProps {
   state: TableArtifactState;
   /** The final transformed table (shown when present, typically in `ready`). */
   table?: DataTable | null;
+  /** All active prepared tables available to this folder session. */
+  preparedTables?: DataTable[];
+  /** Stable prepared-table ID used by Visualize and Publish. */
+  selectedTableId?: string | null;
+  /** Persist the table selection for downstream modes. */
+  onSelectTable?: (tableId: string) => Promise<void> | void;
   /** Source tables used by the transform (name + shape). */
   sourceTables?: DataTable[];
   /** Ordered transformation recipe / steps. */
@@ -77,8 +82,6 @@ export interface TableArtifactProps {
   error?: string | null;
   /** Re-run the transform. */
   onRerun?: () => void;
-  /** Save / persist the transformed table. */
-  onSave?: () => void;
   /** Open a full inspector for the transformed table. */
   onInspect?: () => void;
   /** Retry after an error (defaults to {@link onRerun} when omitted). */
@@ -124,14 +127,14 @@ function ActionButton({
       disabled={!onClick}
       className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium outline-none transition-colors focus-visible:ring-1 disabled:opacity-40"
       style={{
-        backgroundColor: primary ? SPACE.text : 'transparent',
-        color: primary ? SPACE.bg : SPACE.muted,
+        backgroundColor: primary ? SPACE.brand : 'transparent',
+        color: primary ? SPACE.onBrand : SPACE.muted,
         border: primary ? 'none' : `1px solid ${SPACE.border}`,
         cursor: onClick ? 'pointer' : 'not-allowed',
       }}
       onMouseEnter={(e) => {
         if (!onClick) return;
-        if (primary) e.currentTarget.style.backgroundColor = '#D4D4D8';
+        if (primary) e.currentTarget.style.backgroundColor = SPACE.brandHover;
         else {
           e.currentTarget.style.backgroundColor = SPACE.hover;
           e.currentTarget.style.color = SPACE.text;
@@ -139,7 +142,7 @@ function ActionButton({
       }}
       onMouseLeave={(e) => {
         if (!onClick) return;
-        if (primary) e.currentTarget.style.backgroundColor = SPACE.text;
+        if (primary) e.currentTarget.style.backgroundColor = SPACE.brand;
         else {
           e.currentTarget.style.backgroundColor = 'transparent';
           e.currentTarget.style.color = SPACE.muted;
@@ -279,7 +282,7 @@ function qualityIcon(status: QualityStatus): { Icon: LucideIcon; color: string }
     case 'pass':
       return { Icon: CheckCircle2, color: SPACE.success };
     case 'warn':
-      return { Icon: AlertTriangle, color: '#EAB308' };
+      return { Icon: AlertTriangle, color: SPACE.muted };
     case 'fail':
     default:
       return { Icon: AlertCircle, color: SPACE.danger };
@@ -289,13 +292,15 @@ function qualityIcon(status: QualityStatus): { Icon: LucideIcon; color: string }
 export function TableArtifact({
   state,
   table,
+  preparedTables = [],
+  selectedTableId,
+  onSelectTable,
   sourceTables = [],
   recipe = [],
   qualityChecks = [],
   columnMapping = [],
   error,
   onRerun,
-  onSave,
   onInspect,
   onRetry,
   onLoadTablePage,
@@ -313,13 +318,13 @@ export function TableArtifact({
     );
   }
 
-  // --- Error: coral panel + retry (Requirement 7.6) ---
+  // --- Error: neutral panel + retry (Requirement 7.6) ---
   if (state === 'error') {
     return (
       <div className="flex h-full flex-col items-center justify-center px-8 text-center" style={{ backgroundColor: SPACE.panelAlt }}>
         <div
           className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl"
-          style={{ backgroundColor: 'rgba(249, 112, 102, 0.1)', border: `1px solid ${SPACE.danger}`, color: SPACE.danger }}
+          style={{ backgroundColor: 'rgba(244, 244, 245, 0.06)', border: `1px solid ${SPACE.danger}`, color: SPACE.danger }}
         >
           <AlertCircle className="h-5 w-5" />
         </div>
@@ -383,16 +388,43 @@ export function TableArtifact({
         className="flex flex-shrink-0 items-center gap-2 border-b px-4 py-2.5"
         style={{ borderColor: SPACE.border }}
       >
-        <span className="text-sm font-medium" style={{ color: SPACE.text }}>
-          {table?.name || 'Transformed table'}
-        </span>
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium" style={{ color: SPACE.text }}>
+            {table?.name || 'Prepared table'}
+          </span>
+          <span className="text-[11px]" style={{ color: SPACE.subtle }}>
+            {table?.revision ? `Revision ${table.revision} · ` : ''}Selected for Visualize and Publish
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
           <ActionButton icon={RotateCw} label="Rerun" variant="outline" onClick={onRerun} />
           <ActionButton icon={Search} label="Inspect" variant="outline" onClick={onInspect} />
-          <ActionButton icon={Save} label="Save" variant="primary" onClick={onSave} />
-        </div>
-      </div>
+        </div>      </div>
 
+      {preparedTables.length > 1 && (
+        <label
+          className="flex items-center gap-3 px-4 py-3"
+          style={{ borderBottom: `1px solid ${SPACE.border}` }}
+        >
+          <span className="flex-shrink-0 text-[11px] font-medium uppercase tracking-wide" style={{ color: SPACE.subtle }}>
+            Prepared table
+          </span>
+          <select
+            value={selectedTableId || table?.id || ''}
+            onChange={(event) => void onSelectTable?.(event.target.value)}
+            disabled={!onSelectTable}
+            className="min-w-0 flex-1 rounded-md border px-2.5 py-1.5 text-xs outline-none focus-visible:ring-1 disabled:opacity-60"
+            style={{ backgroundColor: SPACE.panel, borderColor: SPACE.border, color: SPACE.text }}
+            aria-label="Prepared table used by Visualize and Publish"
+          >
+            {preparedTables.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}{item.revision ? ` · r${item.revision}` : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {/* Final transformed table preview (main artifact) */}
       {table && (
         <div className="pt-3">

@@ -26,11 +26,17 @@ export function AppShell() {
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const folderId = params.get('folderId') || sessionStorage.getItem('folderId');
+    const urlFolderId = params.get('folderId');
+    // Only fall back to sessionStorage on the workspace route where restoring
+    // context is expected. On other pages (e.g. Projects) a stale sessionStorage
+    // value would trigger a race condition that overrides the user's new folder
+    // selection with a previously visited one.
+    const isWorkspaceRoute = location.pathname.startsWith('/app/workspace');
+    const folderId = urlFolderId || (isWorkspaceRoute ? sessionStorage.getItem('folderId') : null);
     if (folderId && appState.selectedFolder?.id !== folderId) {
       void appState.loadFolderContext(folderId);
     }
-  }, [appState, appState.selectedFolder?.id, location.search]);
+  }, [appState.selectedFolder?.id, appState.loadFolderContext, location.search, location.pathname]);
 
   // Breadcrumb computation
   const getBreadcrumb = () => {

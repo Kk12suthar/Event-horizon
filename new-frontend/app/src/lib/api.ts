@@ -1,4 +1,4 @@
-import type { FolderStatus, ProjectStatus, UserRole } from '@/types';
+import type { ChartWidget, FolderStatus, GeneratedReport, ProjectStatus, UserRole } from '@/types';
 
 type JsonRecord = Record<string, unknown>;
 type ApiBody = JsonRecord | unknown[] | string | number | boolean | null;
@@ -71,6 +71,35 @@ export interface TablePreviewResponse {
   limit?: number;
 }
 
+export interface PreparedTableDetail {
+  id: string;
+  name: string;
+  source: 'agent_created';
+  revision: number;
+  row_count: number;
+  columns: Array<string | { name?: string }>;
+  source_tables: string[];
+  recipe: string[];
+  active: boolean;
+  session_id: string;
+  created_at: string;
+}
+
+export interface WorkspaceSnapshotResponse {
+  session_id: string;
+  folder_id: string;
+  workspace: {
+    selected_table_id?: string | null;
+    selected_table_name?: string | null;
+    transform_revision?: number;
+    transform_status?: string;
+  };
+  selected_table?: PreparedTableDetail | null;
+  transform_tables: PreparedTableDetail[];
+  charts: ChartWidget[];
+  reports: GeneratedReport[];
+  report_drafts?: Array<Record<string, unknown>>;
+}
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 
 export const BACKEND_URL = trimTrailingSlash(
@@ -517,10 +546,45 @@ export const updateFileStatus = (id: string, status: 'UPLOADED' | 'PROCESSED' | 
   apiPut<JsonRecord>('/file/editFile', { id, status });
 
 export const fetchAllFolderTables = (folderId: string) =>
-  apiGet<{ tables?: Record<string, string>; table_types?: Record<string, 'uploaded' | 'agent_created'> }>(
-    `/data/getAllFolderTables/${folderId}`,
-  );
+  apiGet<{
+    tables?: Record<string, string>;
+    table_types?: Record<string, 'uploaded' | 'agent_created'>;
+    table_details?: PreparedTableDetail[];
+  }>(`/data/getAllFolderTables/${folderId}`);
 
+export async function fetchSessionWorkspace(sessionId: string, folderId: string) {
+  const response = await apiGet<unknown>(`/session/getWorkspace/${sessionId}`, { folder_id: folderId });
+  return unwrapData<WorkspaceSnapshotResponse>(response);
+}
+
+export async function selectSessionTransform(sessionId: string, folderId: string, tableId: string) {
+  const response = await apiPut<unknown>('/session/selectTransform', {
+    session_id: sessionId,
+    folder_id: folderId,
+    table_id: tableId,
+  });
+  return unwrapData<PreparedTableDetail>(response);
+}
+
+export async function saveSessionArtifact<T extends ChartWidget | GeneratedReport>(
+  sessionId: string,
+  folderId: string,
+  artifact: T,
+) {
+  const response = await apiPut<unknown>('/session/saveArtifact', {
+    session_id: sessionId,
+    folder_id: folderId,
+    artifact,
+  });
+  return unwrapData<T>(response);
+}
+
+export const deleteSessionArtifact = (sessionId: string, folderId: string, artifactId: string) =>
+  apiDelete<unknown>('/session/deleteArtifact', {
+    session_id: sessionId,
+    folder_id: folderId,
+    artifact_id: artifactId,
+  });
 export const fetchTablePreview = (input: {
   tableName: string;
   conversationId: string;

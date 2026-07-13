@@ -1,6 +1,8 @@
+import { lazy, Suspense } from 'react';
 import { Sparkles } from 'lucide-react';
-import type { ChatMessage } from '../../types';
+import type { ChartWidget, ChatMessage } from '../../types';
 import { SPACE } from './theme';
+const InlineChartArtifact = lazy(() => import('./InlineChartArtifact'));
 
 /**
  * MessageRow - renders a single chat message according to its type.
@@ -9,19 +11,21 @@ import { SPACE } from './theme';
  * - `user`  → right-aligned dark rounded bubble (raised panel surface).
  * - `agent` → left-aligned readable text with a small attribution label and
  *             no heavy bubble, so final responses read like prose.
- * - `error` → coral left-border panel reserved for failed states.
+ * - `error` → neutral left-border panel reserved for failed states.
  *
  * Intermediate streamed events (`activity`, `tool_call`, `tool_response`,
  * `chart_result`, `typing`) are grouped inside the existing
  * `AgentActivityTrail` rather than rendered here, so this component returns
  * `null` for them. Uses only the monochrome SPACE tokens - white/light-gray
- * accent, coral for errors only, no purple/blue.
+ * accent, neutral for errors only, no purple/blue.
  */
 export interface MessageRowProps {
   message: ChatMessage;
+  savedChartIds?: ReadonlySet<string>;
+  onSaveChart?: (chart: ChartWidget) => Promise<ChartWidget>;
 }
 
-export function MessageRow({ message }: MessageRowProps) {
+export function MessageRow({ message, savedChartIds, onSaveChart }: MessageRowProps) {
   // User: right-aligned dark rounded bubble.
   if (message.type === 'user') {
     return (
@@ -44,14 +48,14 @@ export function MessageRow({ message }: MessageRowProps) {
     );
   }
 
-  // Error: coral left-border panel, reserved for failed states only.
+  // Error: neutral left-border panel, reserved for failed states only.
   if (message.type === 'error') {
     return (
       <div
         className="max-w-[90%] rounded-r-lg border-l-2 px-4 py-3"
         style={{
           borderColor: SPACE.danger,
-          backgroundColor: 'rgba(249,112,102,0.08)',
+          backgroundColor: 'rgba(244,244,245,0.06)',
         }}
       >
         <p className="text-sm leading-6" style={{ color: SPACE.danger }}>
@@ -61,6 +65,27 @@ export function MessageRow({ message }: MessageRowProps) {
     );
   }
 
+  if (message.type === 'chart_result') {
+    const chart = message.metadata?.artifact;
+    if (!chart) return null;
+    return (
+      <Suspense
+        fallback={(
+          <div
+            className="h-48 w-full max-w-[720px] animate-pulse rounded-lg border"
+            style={{ backgroundColor: SPACE.panelAlt, borderColor: SPACE.border }}
+            aria-label="Loading chart preview"
+          />
+        )}
+      >
+        <InlineChartArtifact
+          chart={chart}
+          saved={savedChartIds?.has(chart.id) ?? false}
+          onSave={onSaveChart}
+        />
+      </Suspense>
+    );
+  }
   // Agent: left-aligned readable text, no heavy bubble.
   if (message.type === 'agent') {
     const usage = message.metadata?.tokenUsage;

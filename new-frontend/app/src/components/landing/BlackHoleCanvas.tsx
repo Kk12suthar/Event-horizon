@@ -12,6 +12,16 @@ export const BlackHoleCanvas: React.FC<BlackHoleCanvasProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [glError, setGlError] = useState<boolean>(false);
+  const scrollRef = useRef(scrollProgress);
+  const mouseRef = useRef(mousePos);
+
+  useEffect(() => {
+    scrollRef.current = scrollProgress;
+  }, [scrollProgress]);
+
+  useEffect(() => {
+    mouseRef.current = mousePos;
+  }, [mousePos]);
 
   // Shader source code for the relativistic Schwarzschild black hole raytracer
   const vertexShaderSource = `
@@ -71,27 +81,20 @@ export const BlackHoleCanvas: React.FC<BlackHoleCanvasProps> = ({
       return v;
     }
 
-    // High fidelity color mapping for relativistic accretion disk
+    // Neutral temperature map: warm white near the core, silver at the edge.
     vec3 getDiskColor(float dist, float g, float n) {
-      // Base temperature profile T ~ r^(-0.75) for thin disks
-      // We also make it fade out to 0 at the ISCO boundary (r = 3.0 * GM/c^2 = 1.5 * Rs)
       float isco = 1.5 * RS;
       if (dist < isco) return vec3(0.0);
-      
-      float temp = pow(dist / isco, -0.75) * (1.0 - sqrt(isco / dist));
-      
-      // Shift observed temp with general relativity + doppler factor g
-      float finalTemp = temp * g * 2.5;
-      
-      // Add local gaseous clumps / heat variance from noise
-      finalTemp += n * 0.15 * pow(dist, -0.5) * g;
 
-      // Color mapping: hotter light is white, medium is pure orange (#c16e43), cooler is deep orange-red, redshifted is dark red-orange
-      vec3 colHot = vec3(1.0, 1.0, 1.0);
-      vec3 colMid = vec3(1.0, 0.36, 0.0); // Orange
-      vec3 colCool = vec3(0.85, 0.25, 0.0); // Deeper orange-red
-      vec3 colRedshift = vec3(0.35, 0.04, 0.00); // Gravitationally Redshifted dark red-orange
-      
+      float temp = pow(dist / isco, -0.75) * (1.0 - sqrt(isco / dist));
+      float finalTemp = temp * g * 2.15;
+      finalTemp += n * 0.08 * pow(dist, -0.5) * g;
+
+      vec3 colHot = vec3(1.0, 0.985, 0.95);
+      vec3 colMid = vec3(0.62, 0.49, 0.42);
+      vec3 colCool = vec3(0.34, 0.31, 0.30);
+      vec3 colRedshift = vec3(0.075, 0.078, 0.085);
+
       vec3 col;
       if (finalTemp > 0.8) {
         col = mix(colMid, colHot, (finalTemp - 0.8) / 1.2);
@@ -100,27 +103,28 @@ export const BlackHoleCanvas: React.FC<BlackHoleCanvasProps> = ({
       } else {
         col = mix(colRedshift, colCool, finalTemp / 0.3);
       }
-      
-      // Fade near edges
+
       float edgeFade = smoothstep(isco, isco + 0.3, dist) * (1.0 - smoothstep(6.5 * RS, 9.0 * RS, dist));
-      return col * edgeFade;
+      return col * edgeFade * 0.82;
     }
 
     void main() {
       // Normalize UV to centered aspect-corrected coordinates (-1 to 1)
       vec2 uv = (gl_FragCoord.xy * 2.0 - u_resolution.xy) / min(u_resolution.x, u_resolution.y);
+      float aspectRatio = u_resolution.x / max(u_resolution.y, 1.0);
+      if (aspectRatio > 1.2) uv.x -= 0.28;
       
       // Time and interactive variables
-      float t_var = u_time * 0.8;
+      float t_var = u_time * 0.35;
       
       // Cinematic Camera Motion based on Scroll Progress & subtle Mouse Parallax
       // Scroll moves camera from slightly elevated orbit down to a more side-on, sweeping cinematic angle
-      float camPitch = mix(0.35, 0.05, u_scroll); // angle above disk plane (y=0)
-      float camYaw = t_var * 0.12 + u_scroll * 0.6 + u_mouse.x * 0.15; // orbital angle around y-axis
+      float camPitch = mix(0.31, 0.08, u_scroll); // angle above disk plane (y=0)
+      float camYaw = t_var * 0.055 + u_scroll * 0.4 + u_mouse.x * 0.08; // slow orbital drift around y-axis
       float camRadius = mix(6.2, 5.0, u_scroll); // pan closer during scroll
       
       // Subtly raise/lower view with mouse
-      camPitch += u_mouse.y * 0.08;
+      camPitch += u_mouse.y * 0.04;
 
       // Calculate camera vectors
       vec3 camPos = vec3(
@@ -233,28 +237,28 @@ export const BlackHoleCanvas: React.FC<BlackHoleCanvasProps> = ({
         float starDensity = hash(floor(starDir * 240.0));
         vec3 starColor = vec3(0.0);
         
-        if (starDensity > 0.994) {
-          float intensity = smoothstep(0.994, 1.0, starDensity);
+        if (starDensity > 0.997) {
+          float intensity = smoothstep(0.997, 1.0, starDensity) * 0.72;
           // Stars have cool visual colors
           float cHash = hash(floor(starDir * 120.0));
-          vec3 starTint = vec3(0.85, 0.92, 1.0); // Cyanic star
-          if (cHash > 0.7) starTint = vec3(1.0, 0.82, 0.75); // Red giant tint
-          if (cHash < 0.25) starTint = vec3(1.0, 1.0, 1.0); // Pure white
+          vec3 starTint = vec3(0.72, 0.74, 0.76);
+          if (cHash > 0.7) starTint = vec3(0.92, 0.90, 0.86);
+          if (cHash < 0.25) starTint = vec3(0.98, 0.98, 0.97);
           
           // Pulsing twinkle
-          float twinkle = mix(0.7, 1.0, sin(u_time * 2.0 + hash(floor(starDir * 100.0)) * 6.0) * 0.5 + 0.5);
+          float twinkle = mix(0.82, 1.0, sin(u_time * 0.7 + hash(floor(starDir * 100.0)) * 6.0) * 0.5 + 0.5);
           starColor = starTint * intensity * twinkle;
         }
         
         // Draw deep galactic cloud / cosmic dust behind disk
         float dustNoise = fbm(starDir.xy * 2.5 + vec2(t_var * 0.015, t_var * 0.005));
         vec3 dustColor = mix(
-          vec3(0.025, 0.008, 0.0), // deep warm ember
-          vec3(0.03, 0.012, 0.005), // deep warm copper
+          vec3(0.006, 0.006, 0.007),
+          vec3(0.012, 0.012, 0.013),
           dustNoise
-        ) * (1.0 - smoothstep(0.4, 0.9, length(starDir.xy)));
+        ) * (1.0 - smoothstep(0.35, 0.85, length(starDir.xy)));
         
-        vec3 bg = starColor + dustColor * 0.45;
+        vec3 bg = starColor + dustColor * 0.24;
         accumColor += (1.0 - accumAlpha) * bg;
       } else if (hitEventHorizon) {
         // Event Horizon has absolute black color
@@ -272,28 +276,30 @@ export const BlackHoleCanvas: React.FC<BlackHoleCanvasProps> = ({
       
       // Soft bloom around the extreme highlights
       float brightness = dot(finalCol, vec3(0.299, 0.587, 0.114));
-      if (brightness > 0.8) {
-        finalCol += (brightness - 0.8) * vec3(0.12, 0.04, 0.1) * u_scroll;
+      if (brightness > 0.72) {
+        finalCol += (brightness - 0.72) * vec3(0.025, 0.024, 0.022) * (0.2 + u_scroll * 0.25);
       }
       
+      finalCol = finalCol / (vec3(1.0) + finalCol * 0.3);
       gl_FragColor = vec4(finalCol, 1.0);
     }
   `;
 
-  // WebGL Renderer logic
+  // Initialize WebGL once. Scroll and pointer input are eased through refs inside the frame loop.
   useEffect(() => {
+    if (glError) return;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const gl = (canvas.getContext("webgl") ||
       canvas.getContext("experimental-webgl")) as WebGLRenderingContext | null;
     if (!gl) {
-      console.warn("WebGL not supported by browser. Falling back to CPU 2D Particle simulation.");
+      console.warn("WebGL is unavailable; using the 2D black-hole renderer.");
       setGlError(true);
       return;
     }
 
-    // Compile Helper function
     const compileShader = (source: string, type: number): WebGLShader | null => {
       const shader = gl.createShader(type);
       if (!shader) return null;
@@ -310,36 +316,45 @@ export const BlackHoleCanvas: React.FC<BlackHoleCanvasProps> = ({
     const vs = compileShader(vertexShaderSource, gl.VERTEX_SHADER);
     const fs = compileShader(fragmentShaderSource, gl.FRAGMENT_SHADER);
     if (!vs || !fs) {
+      if (vs) gl.deleteShader(vs);
+      if (fs) gl.deleteShader(fs);
       setGlError(true);
       return;
     }
 
     const program = gl.createProgram();
     if (!program) {
+      gl.deleteShader(vs);
+      gl.deleteShader(fs);
       setGlError(true);
       return;
     }
+
     gl.attachShader(program, vs);
     gl.attachShader(program, fs);
     gl.linkProgram(program);
-
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
       console.error("Program linking error:", gl.getProgramInfoLog(program));
+      gl.deleteProgram(program);
+      gl.deleteShader(vs);
+      gl.deleteShader(fs);
       setGlError(true);
       return;
     }
 
-    // Set up positions
     const vertices = new Float32Array([
-      -1.0, -1.0,
-       1.0, -1.0,
-      -1.0,  1.0,
-      -1.0,  1.0,
-       1.0, -1.0,
-       1.0,  1.0,
+      -1, -1, 1, -1, -1, 1,
+      -1, 1, 1, -1, 1, 1,
     ]);
-
     const buffer = gl.createBuffer();
+    if (!buffer) {
+      gl.deleteProgram(program);
+      gl.deleteShader(vs);
+      gl.deleteShader(fs);
+      setGlError(true);
+      return;
+    }
+
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
     gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
 
@@ -347,24 +362,24 @@ export const BlackHoleCanvas: React.FC<BlackHoleCanvasProps> = ({
     gl.enableVertexAttribArray(positionLoc);
     gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
 
-    // Uniform locations
     const resolutionLoc = gl.getUniformLocation(program, "u_resolution");
     const timeLoc = gl.getUniformLocation(program, "u_time");
     const scrollLoc = gl.getUniformLocation(program, "u_scroll");
     const mouseLoc = gl.getUniformLocation(program, "u_mouse");
 
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const startTime = performance.now();
     let animationFrameId = 0;
-    let startTime = Date.now();
+    let smoothedScroll = scrollRef.current;
+    let smoothedMouseX = mouseRef.current.x;
+    let smoothedMouseY = mouseRef.current.y;
 
-    // Responsive Canvas Resizer - Render at half-scale for 60 FPS performance
     const resizeCanvas = () => {
       const displayWidth = containerRef.current?.clientWidth || window.innerWidth;
       const displayHeight = containerRef.current?.clientHeight || window.innerHeight;
-      
-      // Half-resolution downscaling for incredibly smooth 60fps on retina and mobile
-      const dpr = window.devicePixelRatio > 1 ? 1.0 : 1.0; 
-      const renderWidth = Math.floor(displayWidth * dpr);
-      const renderHeight = Math.floor(displayHeight * dpr);
+      const renderScale = window.innerWidth < 768 ? 0.78 : 1;
+      const renderWidth = Math.max(1, Math.floor(displayWidth * renderScale));
+      const renderHeight = Math.max(1, Math.floor(displayHeight * renderScale));
 
       if (canvas.width !== renderWidth || canvas.height !== renderHeight) {
         canvas.width = renderWidth;
@@ -373,281 +388,196 @@ export const BlackHoleCanvas: React.FC<BlackHoleCanvasProps> = ({
       }
     };
 
-    window.addEventListener("resize", resizeCanvas);
-    resizeCanvas();
+    const render = (now: number) => {
+      if (!document.hidden) {
+        smoothedScroll += (scrollRef.current - smoothedScroll) * 0.045;
+        smoothedMouseX += (mouseRef.current.x - smoothedMouseX) * 0.035;
+        smoothedMouseY += (mouseRef.current.y - smoothedMouseY) * 0.035;
 
-    // Render loop
-    const render = () => {
-      const now = Date.now();
-      const elapsed = (now - startTime) / 1000.0;
+        gl.useProgram(program);
+        gl.uniform2f(resolutionLoc, canvas.width, canvas.height);
+        gl.uniform1f(timeLoc, reduceMotion ? 4 : (now - startTime) / 1000);
+        gl.uniform1f(scrollLoc, smoothedScroll);
+        gl.uniform2f(mouseLoc, smoothedMouseX, smoothedMouseY);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
 
-      gl.useProgram(program);
-
-      // Pass uniforms
-      gl.uniform2f(resolutionLoc, canvas.width, canvas.height);
-      gl.uniform1f(timeLoc, elapsed);
-      gl.uniform1f(scrollLoc, scrollProgress);
-      gl.uniform2f(mouseLoc, mousePos.x, mousePos.y);
-
-      // Draw
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-      animationFrameId = requestAnimationFrame(render);
+      if (!reduceMotion) animationFrameId = requestAnimationFrame(render);
     };
 
-    render();
+    const handleResize = () => {
+      resizeCanvas();
+      if (reduceMotion) render(performance.now());
+    };
+
+    window.addEventListener("resize", handleResize);
+    resizeCanvas();
+    render(performance.now());
 
     return () => {
       cancelAnimationFrame(animationFrameId);
-      window.removeEventListener("resize", resizeCanvas);
+      window.removeEventListener("resize", handleResize);
       gl.deleteBuffer(buffer);
       gl.deleteProgram(program);
       gl.deleteShader(vs);
       gl.deleteShader(fs);
     };
-  }, [scrollProgress, glError]);
-
-  // HIGH PERFORMANCE HTML5 2D CANVAS FALLBACK
-  // Designed in case WebGL is unavailable or errors out
+  }, [fragmentShaderSource, glError, vertexShaderSource]);
   const fallbackCanvasRef = useRef<HTMLCanvasElement>(null);
+
   useEffect(() => {
     if (!glError) return;
 
     const canvas = fallbackCanvasRef.current;
-    if (!canvas) return;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    let animationId = 0;
-    let startTime = Date.now();
-
-    // Create a high-fidelity 2D particle accretion disk simulation
     interface Particle {
       angle: number;
       radius: number;
       speed: number;
       size: number;
-      color: string;
       alpha: number;
     }
 
-    const particles: Particle[] = [];
-    const particleCount = 280;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const particles: Particle[] = Array.from({ length: 170 }, () => ({
+      angle: Math.random() * Math.PI * 2,
+      radius: 54 + Math.random() * 230,
+      speed: 0.0018 + Math.random() * 0.0022,
+      size: 0.7 + Math.random() * 1.7,
+      alpha: 0.12 + Math.random() * 0.52,
+    }));
+    const stars = Array.from({ length: 90 }, () => ({
+      x: Math.random(),
+      y: Math.random(),
+      size: 0.45 + Math.random() * 1.1,
+      brightness: 0.12 + Math.random() * 0.42,
+    }));
 
-    // Initialize stars orbiting the gravity well
-    for (let i = 0; i < particleCount; i++) {
-      const radius = 60 + Math.random() * 220;
-      // Closer particles orbit much faster (Keplerian physics: speed ~ r^-1.5)
-      const speed = (0.2 + Math.random() * 0.15) * Math.pow(radius / 60, -1.2);
-      // Doppler mapping: left side is coming towards observer (+y), color is white-orange.
-      // Right side moving away, color is deep blood orange/pink.
-      particles.push({
-        angle: Math.random() * Math.PI * 2,
-        radius,
-        speed,
-        size: 1 + Math.random() * 2.5,
-        color: radius < 110 ? "rgba(195, 112, 70, " : "rgba(200, 128, 80, ",
-        alpha: 0.15 + Math.random() * 0.7,
-      });
-    }
+    let animationId = 0;
+    let smoothedScroll = scrollRef.current;
+    let smoothedMouseX = mouseRef.current.x;
+    let smoothedMouseY = mouseRef.current.y;
+    const startTime = performance.now();
 
-    // Static starfield background for deep space feeling
-    const stars: { x: number; y: number; size: number; brightness: number }[] = [];
-    for (let i = 0; i < 150; i++) {
-      stars.push({
-        x: Math.random(),
-        y: Math.random(),
-        size: 0.5 + Math.random() * 1.5,
-        brightness: 0.2 + Math.random() * 0.8,
-      });
-    }
-
-    const resizeFallback = () => {
-      const displayWidth = containerRef.current?.clientWidth || window.innerWidth;
-      const displayHeight = containerRef.current?.clientHeight || window.innerHeight;
-      canvas.width = displayWidth;
-      canvas.height = displayHeight;
+    const resize = () => {
+      const width = containerRef.current?.clientWidth || window.innerWidth;
+      const height = containerRef.current?.clientHeight || window.innerHeight;
+      canvas.width = Math.max(1, Math.floor(width));
+      canvas.height = Math.max(1, Math.floor(height));
     };
 
-    window.addEventListener("resize", resizeFallback);
-    resizeFallback();
+    const draw = (now: number) => {
+      smoothedScroll += (scrollRef.current - smoothedScroll) * 0.045;
+      smoothedMouseX += (mouseRef.current.x - smoothedMouseX) * 0.035;
+      smoothedMouseY += (mouseRef.current.y - smoothedMouseY) * 0.035;
 
-    const drawFallback = () => {
-      const t = (Date.now() - startTime) / 1000;
-      const w = canvas.width;
-      const h = canvas.height;
-      const cx = w / 2;
-      const cy = h / 2 + mixValue(0, -60, scrollProgress);
+      const elapsed = reduceMotion ? 4 : (now - startTime) / 1000;
+      const width = canvas.width;
+      const height = canvas.height;
+      const wide = width / Math.max(height, 1) > 1.2;
+      const cx = width * (wide ? 0.64 : 0.5) + smoothedMouseX * 10;
+      const cy = height * 0.53 - smoothedScroll * 45 - smoothedMouseY * 6;
+      const scale = Math.min(width, height) / 720;
 
-      // Fade canvas to black-indigo void
-      ctx.fillStyle = "#000000";
-      ctx.fillRect(0, 0, w, h);
-
-      // Draw Starfield with Gravitational Lensing displacement near center
-      ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-      stars.forEach((star) => {
-        let sx = star.x * w;
-        let sy = star.y * h;
-        
-        // Calculate vector from black hole center to star
-        const dx = sx - cx;
-        const dy = sy - cy;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        
-        // Relativistic lensing effect: stretch and deflect star positions
-        // Stars close to event horizon are pushed outward or smeared
-        if (dist > 35) {
-          const deflection = 1.0 + (3000 / (dist * dist));
-          sx = cx + dx * deflection;
-          sy = cy + dy * deflection;
-          
-          ctx.globalAlpha = star.brightness * (0.35 + Math.sin(t * 3 + star.x * 20) * 0.15);
-          ctx.beginPath();
-          ctx.arc(sx, sy, star.size, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      });
-
-      // Draw subtle glowing dust clouds / nebula background
-      const nebulaGlow = ctx.createRadialGradient(cx, cy, 30, cx, cy, 320);
-      nebulaGlow.addColorStop(0, "rgba(193, 110, 67, 0.1)");
-      nebulaGlow.addColorStop(0.3, "rgba(198, 126, 78, 0.06)");
-      nebulaGlow.addColorStop(0.6, "rgba(175, 92, 55, 0.02)");
-      nebulaGlow.addColorStop(1, "rgba(0, 0, 0, 0)");
       ctx.globalAlpha = 1;
-      ctx.fillStyle = nebulaGlow;
-      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(0, 0, width, height);
 
-      // Draw Accretion Disk back lensing (glowing ring curving over the top)
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = "rgba(193, 110, 67, 0.12)";
-      ctx.beginPath();
-      ctx.ellipse(cx, cy - 8, 95, 30, 0, Math.PI, Math.PI * 2, false);
-      ctx.stroke();
-
-      // Update and Draw Orbiting Particles (Data nodes)
-      // Doppler brightness: left side (moving forward) is brighter
-      particles.forEach((p) => {
-        // Orbital projection with pitch tilting
-        const pitch = mixValue(0.3, 0.08, scrollProgress) + mousePos.y * 0.03;
-        const yaw = p.angle + mousePos.x * 0.05;
-        
-        const px = cx + p.radius * Math.cos(yaw);
-        const py = cy + p.radius * Math.sin(yaw) * pitch;
-
-        // Is particle in front of or behind the central black hole?
-        const isFront = Math.sin(yaw) > 0;
-
-        // Velocity along the line of sight (Doppler boosting)
-        // Left side is moving forward, right is moving back
-        const lineOfSightVel = -Math.sin(yaw); // Max at cos() point
-        const dopplerMultiplier = mixValue(0.4, 2.3, (lineOfSightVel + 1) / 2);
-
-        ctx.globalAlpha = p.alpha * dopplerMultiplier * (isFront ? 1.0 : 0.4);
-        ctx.fillStyle = p.color + (p.alpha * dopplerMultiplier).toFixed(2) + ")";
-
+      ctx.fillStyle = "rgba(238, 238, 234, 0.7)";
+      for (const star of stars) {
+        const flicker = 0.82 + Math.sin(elapsed * 0.5 + star.x * 20) * 0.08;
+        ctx.globalAlpha = star.brightness * flicker;
         ctx.beginPath();
-        ctx.arc(px, py, p.size * (isFront ? 1.2 : 0.8) * (0.8 + dopplerMultiplier * 0.2), 0, Math.PI * 2);
+        ctx.arc(star.x * width, star.y * height, star.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(-0.08 + smoothedScroll * 0.04);
+      ctx.scale(1, 0.28 + smoothedScroll * 0.04);
+
+      const halo = ctx.createRadialGradient(0, 0, 35 * scale, 0, 0, 280 * scale);
+      halo.addColorStop(0, "rgba(255, 252, 242, 0.12)");
+      halo.addColorStop(0.32, "rgba(205, 205, 201, 0.045)");
+      halo.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(0, 0, 280 * scale, 0, Math.PI * 2);
+      ctx.fill();
+
+      for (const particle of particles) {
+        const x = Math.cos(particle.angle) * particle.radius * scale;
+        const y = Math.sin(particle.angle) * particle.radius * scale;
+        const approaching = Math.max(0, -Math.sin(particle.angle));
+        ctx.globalAlpha = particle.alpha * (0.34 + approaching * 0.66);
+        ctx.fillStyle = approaching > 0.55 ? "#fffaf0" : "#a7a7a4";
+        ctx.beginPath();
+        ctx.arc(x, y, particle.size * scale, 0, Math.PI * 2);
         ctx.fill();
 
-        // Gravitational drag pulls particle closer to the center
-        p.angle += p.speed;
-        p.radius -= 0.05; // spiral inward
-        if (p.radius < 35) {
-          // Re-spawn particle at outer edge when sucked into event horizon
-          p.radius = 200 + Math.random() * 80;
-          p.speed = (0.2 + Math.random() * 0.15) * Math.pow(p.radius / 60, -1.2);
-        }
-      });
+        if (!reduceMotion) particle.angle += particle.speed;
+        particle.radius -= reduceMotion ? 0 : 0.014;
+        if (particle.radius < 47) particle.radius = 220 + Math.random() * 65;
+      }
 
-      // Draw the central pitch-black Event Horizon shadow
-      ctx.globalAlpha = 1.0;
-      ctx.fillStyle = "#000000";
+      const disk = ctx.createLinearGradient(-150 * scale, 0, 170 * scale, 0);
+      disk.addColorStop(0, "rgba(255, 252, 242, 0.9)");
+      disk.addColorStop(0.34, "rgba(193, 110, 67, 0.24)");
+      disk.addColorStop(0.72, "rgba(117, 118, 120, 0.25)");
+      disk.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.globalAlpha = 0.8;
+      ctx.strokeStyle = disk;
+      ctx.lineWidth = 7 * scale;
       ctx.beginPath();
-      ctx.arc(cx, cy, 35, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Sharp glowing photon sphere ring
-      const innerGlow = ctx.createRadialGradient(cx, cy, 32, cx, cy, 38);
-      innerGlow.addColorStop(0, "rgba(255, 255, 255, 0.95)");
-      innerGlow.addColorStop(0.2, "rgba(193, 110, 67, 0.9)");
-      innerGlow.addColorStop(0.7, "rgba(175, 92, 55, 0.3)");
-      innerGlow.addColorStop(1, "rgba(0, 0, 0, 0)");
-      ctx.fillStyle = innerGlow;
-      ctx.beginPath();
-      ctx.arc(cx, cy, 44, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Outer light wrap around Event Horizon (lensed accretion disk foreground overlay)
-      ctx.lineWidth = 14;
-      const gradientDisk = ctx.createLinearGradient(cx - 100, cy, cx + 100, cy);
-      gradientDisk.addColorStop(0, "rgba(255, 255, 255, 0.95)"); // Doppler boosted bright left
-      gradientDisk.addColorStop(0.4, "rgba(193, 110, 67, 0.8)");
-      gradientDisk.addColorStop(0.7, "rgba(198, 126, 78, 0.4)");
-      gradientDisk.addColorStop(1, "rgba(0, 0, 0, 0.1)"); // Receding faint right
-      ctx.strokeStyle = gradientDisk;
-      
-      ctx.beginPath();
-      // Only draw the front half of the ellipse if tilted
-      ctx.ellipse(cx, cy, 75, 12, 0, 0, Math.PI, false);
+      ctx.ellipse(0, 0, 120 * scale, 18 * scale, 0, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.restore();
 
-      animationId = requestAnimationFrame(drawFallback);
+      const shadow = ctx.createRadialGradient(cx, cy, 24 * scale, cx, cy, 62 * scale);
+      shadow.addColorStop(0, "rgba(0, 0, 0, 1)");
+      shadow.addColorStop(0.7, "rgba(0, 0, 0, 1)");
+      shadow.addColorStop(0.86, "rgba(232, 230, 222, 0.28)");
+      shadow.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = shadow;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 66 * scale, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (!reduceMotion) animationId = requestAnimationFrame(draw);
     };
 
-    drawFallback();
+    const handleResize = () => {
+      resize();
+      if (reduceMotion) draw(performance.now());
+    };
+
+    window.addEventListener("resize", handleResize);
+    resize();
+    draw(performance.now());
 
     return () => {
       cancelAnimationFrame(animationId);
-      window.removeEventListener("resize", resizeFallback);
+      window.removeEventListener("resize", handleResize);
     };
-  }, [scrollProgress, glError, mousePos]);
-
-  // Utility lerp helper for fallback canvas
-  const mixValue = (start: number, end: number, amt: number) => {
-    return (1 - amt) * start + amt * end;
-  };
-
+  }, [glError]);
   return (
-    <div
-      ref={containerRef}
-      className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none"
-    >
-      {/* Background radial soft light center to make black hole feel integrated */}
-      <div 
-        className="absolute w-[600px] h-[600px] rounded-full filter blur-[150px] pointer-events-none opacity-40 transition-all duration-300"
-        style={{
-          left: "50%",
-          top: `calc(50% + ${mixValue(0, -60, scrollProgress)}px)`,
-          transform: "translate(-50%, -50%)",
-          background: `radial-gradient(circle, rgba(193, 110, 67,0.15) 0%, rgba(200, 128, 80,0.10) 40%, rgba(185, 100, 60,0.04) 75%, rgba(0,0,0,0) 100%)`,
-        }}
-      />
-
+    <div ref={containerRef} className="absolute inset-0 h-full w-full overflow-hidden pointer-events-none">
       {glError ? (
         <canvas
           ref={fallbackCanvasRef}
-          className="absolute inset-0 w-full h-full mix-blend-screen opacity-90 transition-transform duration-700 ease-out"
+          className="absolute inset-0 h-full w-full opacity-[0.82] transition-opacity duration-700"
         />
       ) : (
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full mix-blend-screen opacity-95 transition-opacity duration-1000"
+          className="absolute inset-0 h-full w-full opacity-[0.86] transition-opacity duration-700"
         />
       )}
-
-      {/* Subtle overlay lines/noise suggesting spacetime coordinates warp */}
-      <div 
-        className="absolute inset-0 grid-bg opacity-10 pointer-events-none"
-        style={{
-          maskImage: "radial-gradient(circle at 50% 50%, transparent 120px, black 320px)",
-          WebkitMaskImage: "radial-gradient(circle at 50% 50%, transparent 120px, black 320px)",
-          transform: `perspective(1000px) rotateX(${mixValue(65, 80, scrollProgress)}deg) translateZ(${mixValue(0, -100, scrollProgress)}px) translateY(${mixValue(0, 150, scrollProgress)}px)`,
-          transformOrigin: "center center",
-          transition: "transform 0.15s ease-out"
-        }}
-      />
     </div>
   );
 };

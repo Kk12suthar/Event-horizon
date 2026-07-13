@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import type { ChatMessage } from '../../types';
+import { useEffect, useMemo, useRef } from 'react';
+import type { ChartWidget, ChatMessage } from '../../types';
 import { AgentActivityTrail, groupChatMessages } from '../AgentActivityTrail';
 import { MessageRow } from './MessageRow';
 import { SPACE } from './theme';
@@ -27,11 +27,14 @@ export interface ChatThreadProps {
   messages: ChatMessage[];
   /** True while the agent stream is in flight. */
   isGenerating: boolean;
+  savedCharts?: ChartWidget[];
+  onSaveChart?: (chart: ChartWidget) => Promise<ChartWidget>;
 }
 
-export function ChatThread({ messages, isGenerating }: ChatThreadProps) {
+export function ChatThread({ messages, isGenerating, savedCharts = [], onSaveChart }: ChatThreadProps) {
   const items = groupChatMessages(messages);
   const lastGroupIndex = findLastGroupIndex(items);
+  const savedChartIds = useMemo(() => new Set(savedCharts.map((chart) => chart.id)), [savedCharts]);
 
   // Auto-scroll to the newest content as messages stream in.
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -50,7 +53,12 @@ export function ChatThread({ messages, isGenerating }: ChatThreadProps) {
               running={isGenerating && index === lastGroupIndex}
             />
           ) : (
-            <MessageRow key={item.msg.id} message={item.msg} />
+            <MessageRow
+              key={item.msg.id}
+              message={item.msg}
+              savedChartIds={savedChartIds}
+              onSaveChart={onSaveChart}
+            />
           )
         )}
         <div ref={bottomRef} />
