@@ -174,8 +174,8 @@ export function Composer({
                   disabled={disabled || !value.trim()}
                   aria-label="Send message"
                   title="Send"
-                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
-                  style={{ backgroundColor: SPACE.text, color: SPACE.bg }}
+                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-[filter,opacity] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+                  style={{ backgroundColor: SPACE.brand, color: SPACE.onBrand }}
                 >
                   <Send className="h-4 w-4" />
                 </button>

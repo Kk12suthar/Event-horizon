@@ -25,7 +25,7 @@ from llm.client import (
 )
 from runtime.model_config import load_effective_model_config
 from runtime.model_store import load_workspace_model_config
-from tools.postgres import execute_select, get_folder_status
+from tools.postgres import execute_select
 
 logger = logging.getLogger("eventhorizon.agent_server.graph")
 
@@ -42,7 +42,7 @@ CONVERSATIONAL_MESSAGES = {
 }
 
 
-def _is_conversation_message(message: str) -> bool:
+def is_conversation_message(message: str) -> bool:
     normalized = " ".join(message.lower().replace("!", " ").replace(".", " ").split())
     return normalized in CONVERSATIONAL_MESSAGES
 
@@ -78,7 +78,6 @@ def create_general_graph():
 
 def input_guard(state: AgentState) -> dict[str, Any]:
     message = (state.get("user_message") or "").strip()
-    emit({"type": "agent_start", "agent_name": "orchestrator", "message": "General agent processing...", "timestamp": now()})
 
     if not message:
         error = {"message": "Query is required."}
@@ -92,10 +91,9 @@ def input_guard(state: AgentState) -> dict[str, Any]:
         emit({"type": "error", "message": error["message"], "timestamp": now()})
         return {"errors": [error], "final_response": error["message"]}
 
-    if _is_conversation_message(message):
+    if is_conversation_message(message):
         return {"intent": "conversation", "final_response": _conversation_response(message)}
 
-    emit({"type": "status", "title": "Input Check", "message": "Request accepted.", "level": "success", "timestamp": now()})
     return {}
 
 
@@ -103,13 +101,15 @@ def context_loader(state: AgentState) -> dict[str, Any]:
     if state.get("errors") or state.get("final_response"):
         return {}
 
-    if not state.get("folder_id"):
-        emit({"type": "status", "title": "Context", "message": "No folder selected. I can answer generally, but data tools need a folder.", "level": "warning", "timestamp": now()})
+    surface = state.get("surface") or "chat"
+    if surface in {"dashboard", "report"} and not state.get("selected_table_id"):
+        message = "Create and select a prepared table in Prepare first."
+        emit({"type": "error", "message": message, "timestamp": now()})
+        return {"errors": [{"message": message}], "final_response": message}
 
-    # Do not pre-load table schemas here. Data MCP tools are advertised to the
-    # LLM in mcp_agent with tool_choice="auto", so the model decides whether a
-    # request needs schema discovery, querying, or no tool calls at all.
-    return {"available_tables": []}
+    selected_name = state.get("selected_table_name")
+    available = [{"name": selected_name, "source": "agent_created"}] if selected_name else []
+    return {"available_tables": available}
 
 
 def intent_router(state: AgentState) -> dict[str, Any]:
@@ -121,7 +121,7 @@ def intent_router(state: AgentState) -> dict[str, Any]:
         return {"intent": explicit}
 
     message = (state.get("user_message") or "").lower()
-    if _is_conversation_message(message):
+    if is_conversation_message(message):
         intent = "conversation"
     elif any(word in message for word in ["report", "pdf", "ppt", "powerpoint", "docx", "document"]):
         intent = "report"
@@ -134,7 +134,6 @@ def intent_router(state: AgentState) -> dict[str, Any]:
     else:
         intent = "analysis"
 
-    emit({"type": "status", "title": "Routing", "message": f"Intent: {intent}", "level": "info", "timestamp": now()})
     return {"intent": intent}
 
 
@@ -166,69 +165,177 @@ async def data_agent(state: AgentState) -> dict[str, Any]:
         return {}
 
     try:
-        provider = InProcessToolProvider(user_id, folder_id)
+        surface = state.get("surface") or "chat"
+        provider = InProcessToolProvider(
+            user_id,
+            folder_id,
+            surface=surface,
+            session_id=state.get("session_id"),
+            selected_table_id=state.get("selected_table_id"),
+            selected_table_name=state.get("selected_table_name"),
+        )
         if not provider.openai_tools:
             return {}
-        emit({"type": "agent_transition", "from_agent": "orchestrator", "to_agent": "data_agent", "label": "Data Agent", "reason": "Answering a data question with folder tools.", "timestamp": now()})
+        labels = {
+            "chat": ("prepare_agent", "Prepare Agent"),
+            "dashboard": ("visualize_agent", "Visualize Agent"),
+            "report": ("publish_agent", "Publish Agent"),
+        }
+        agent_name, label = labels.get(surface, ("data_agent", "Data Agent"))
         emit({
-            "type": "status",
-            "title": "Tools",
-            "message": f"Connected to data tools ({', '.join(provider.tool_names)}).",
-            "level": "info",
+            "type": "agent_transition",
+            "from_agent": "orchestrator",
+            "to_agent": agent_name,
+            "label": label,
+            "reason": "Handling the request with the tools allowed for this workspace mode.",
             "timestamp": now(),
         })
-        # Discover the folder's tables once so both the model and the final
-        # answer have real table context (prevents "no tables" answers even
-        # after tools have run).
-        try:
-            status = get_folder_status(folder_id, user_id=user_id)
-            table_names = [n for n in (status.get("tables") or []) if n]
-        except Exception:
-            table_names = []
-        available = [{"name": name} for name in table_names]
+        available = list(state.get("available_tables") or [])
         loop_state = {**state, "available_tables": available}
         result = await _run_tool_loop(loop_state, provider, model_config, folder_id)
         result.setdefault("available_tables", available)
         return result
     except Exception as exc:
-        logger.warning("Data agent unavailable, falling back to deterministic path: %s", exc)
-        emit({
-            "type": "status",
-            "title": "Tools",
-            "message": "Live data tools unavailable; using built-in analysis.",
-            "level": "warning",
-            "timestamp": now(),
-        })
-        return {}
+        logger.warning("Data agent unavailable: %s", exc)
+        message = "The AI agent is currently unavailable. Please retry this request."
+        emit({"type": "error", "message": message, "timestamp": now()})
+        return {"errors": [{"message": message}], "final_response": message}
 
+
+def _surface_system_prompt(state: AgentState, folder_id: str, table_names: str) -> str:
+    surface = state.get("surface") or "chat"
+    selected = state.get("selected_table_name") or "none"
+    common = f"""You are EventHorizon operating in the {surface} workspace mode.
+
+Rules:
+- Decide whether a tool is needed. Never call tools for greetings, thanks, or casual conversation.
+- Before a necessary tool call, explain the reason in one short sentence.
+- Operate only inside folder_id '{folder_id}'. The runtime injects folder, user, session, and selected-table scope; never ask for or override them.
+- Never invent tables, columns, metrics, chart values, report evidence, or tool results.
+- Do not repeat a tool call when the evidence is already available.
+- When enough evidence exists, answer directly with no further tool call.
+"""
+    if surface == "dashboard":
+        return common + f"""
+You are the Visualize agent. The only permitted data source is the selected prepared table '{selected}'.
+Use viz_get_schema when column names are unknown. For chart and KPI requests, use viz_create_chart or viz_create_kpi so a grounded transient preview is emitted. Never claim a preview is saved; the user persists it with Add to dashboard. Use viz_aggregate, viz_time_series, or viz_correlation for analysis. Call update/delete tools only for an explicit request about an already saved chart. Never query uploaded source tables and never mutate data.
+"""
+    if surface == "report":
+        return common + f"""
+You are the Publish agent. Use only the selected prepared table '{selected}' and persisted, non-stale charts. Every report-generation request is data-dependent: before drafting or finalizing, you must call report_get_data_summary and report_list_charts successfully. Persist requested outline sections with report_create_section. Do not fabricate numbers or chart findings. The server handles PDF, HTML, PPTX, and DOCX export after your grounded final response.
+"""
+    return common + f"""
+You are the Prepare agent. Tables are discovered only when the user's data request requires them; current known tables: {table_names}.
+Use data_list_tables and data_describe_tables to inspect uploaded sources. Use prepare_detect_quality_issues for profiling. When the user explicitly asks to clean, join, combine, or create a final table, formulate one safe folder-scoped SELECT, validate it with prepare_plan_transform, then call prepare_build_transform. The build tool creates a new prepared table and never changes uploaded sources. Do not stop after merely listing tables when the request asks for a transformation.
+"""
 
 async def _run_tool_loop(state: AgentState, provider: InProcessToolProvider, model_config, folder_id: str) -> dict[str, Any]:
     tables = state.get("available_tables") or []
     table_names = ", ".join(t.get("name", "") for t in tables if t.get("name")) or "(none discovered yet)"
 
-    system_prompt = (
-        "You are EventHorizon, a production data workspace assistant. Answer the "
-        "user's question about their data by calling the provided read-only tools "
-        "to gather evidence, then giving a clear, grounded final answer.\n"
-        "Rules:\n"
-        "- Before calling a tool, briefly state your reasoning in ONE short sentence; this is shown to the user as your thinking.\n"
-        f"- Operate ONLY on folder_id '{folder_id}'. Always pass this exact folder_id to tools.\n"
-        f"- Tables available in this folder: {table_names}.\n"
-        "- For large tables, prefer data_row_count (estimate), data_aggregate, and "
-        "data_column_stats over reading raw rows, to stay fast and token-light.\n"
-        "- Use data_list_tables / data_describe_tables to discover schema when unsure.\n"
-        "- Do not repeat a tool call that already appears in the gathered evidence.\n"
-        "- Never invent data, columns, or numbers. Base every claim on tool results.\n"
-        "- When you have enough evidence, reply with a concise final answer and NO further tool call."
-    )
+    system_prompt = _surface_system_prompt(state, folder_id, table_names)
     user_question = state.get("user_message", "")
 
     evidence: list[dict[str, Any]] = []
     results = list(state.get("tool_results") or [])
+    artifacts = list(state.get("artifacts") or [])
     usage_total = dict(state.get("token_usage") or EMPTY_USAGE)
     used_tools = False
     thinking_open = False
     final_text = ""
+    required_grounding_tools = (
+        {"report_get_data_summary", "report_list_charts"}
+        if state.get("surface") == "report"
+        else set()
+    )
+    grounding_instruction = ""
+    grounding_nudges = 0
+
+    def missing_grounding_tools() -> list[str]:
+        successful = {
+            str(step.get("tool"))
+            for step in evidence
+            if isinstance(step.get("result"), dict) and not step["result"].get("error")
+        }
+        return sorted(required_grounding_tools - successful)
+
+    def grounding_failure(missing: list[str]) -> dict[str, Any]:
+        message = (
+            "The report was not generated because required table and chart evidence "
+            f"could not be gathered ({', '.join(missing)}). Please retry."
+        )
+        emit({"type": "error", "message": message, "timestamp": now()})
+        return {
+            "tool_results": results,
+            "token_usage": usage_total,
+            "agent_evidence": bool(evidence),
+            "artifacts": artifacts,
+            "errors": [{"message": message}],
+            "final_response": message,
+        }
+
+    async def execute_tool(name: str, args: dict[str, Any], call_id: str | None = None) -> bool:
+        nonlocal used_tools
+        used_tools = True
+        arguments = dict(args or {})
+        if FOLDER_SCOPED_ARG in arguments or name.startswith("data_"):
+            arguments[FOLDER_SCOPED_ARG] = folder_id
+        context = {
+            "folder_id": folder_id,
+            "session_id": state.get("session_id"),
+            "selected_table_id": state.get("selected_table_id"),
+            "selected_table_name": state.get("selected_table_name"),
+        }
+        display_args = {
+            key: value
+            for key, value in arguments.items()
+            if key not in {FOLDER_SCOPED_ARG, "session_id", "selected_table_id", "selected_table_name", "user_id"}
+        }
+        display_args["context"] = {key: value for key, value in context.items() if value}
+        resolved_call_id = call_id or f"tool_{uuid.uuid4().hex[:8]}"
+        emit({
+            "type": "function_request",
+            "tool_name": name,
+            "tool_args": display_args,
+            "call_id": resolved_call_id,
+            "agent_name": "data_agent",
+            "timestamp": now(),
+        })
+        started = time.perf_counter()
+        try:
+            tool_text = await provider.call(name, arguments)
+        except Exception as exc:
+            tool_text = json.dumps({"error": f"Tool '{name}' failed: {exc}"})
+        duration_ms = round((time.perf_counter() - started) * 1000, 2)
+        try:
+            tool_result = json.loads(tool_text)
+        except (TypeError, ValueError):
+            tool_result = {"result": tool_text}
+        success = not bool(tool_result.get("error"))
+        emit({
+            "type": "function_response",
+            "tool_name": name,
+            "response": tool_result,
+            "call_id": resolved_call_id,
+            "agent_name": "data_agent",
+            "duration_ms": duration_ms,
+            "success": success,
+            "timestamp": now(),
+        })
+        artifact = tool_result.get("artifact")
+        if isinstance(artifact, dict):
+            artifact_type = str(artifact.get("artifact_type") or artifact.get("type") or "artifact")
+            artifacts.append(artifact)
+            emit({
+                "type": "artifact",
+                "artifact_type": artifact_type,
+                "data": artifact,
+                "artifact": artifact,
+                "timestamp": now(),
+            })
+        results.append({"tool": name, "args": display_args, "result": tool_result, "duration_ms": duration_ms})
+        evidence.append({"tool": name, "args": display_args, "result": tool_result})
+        return success
 
     def on_reasoning(delta: str) -> None:
         nonlocal thinking_open
@@ -239,9 +346,18 @@ async def _run_tool_loop(state: AgentState, provider: InProcessToolProvider, mod
             thinking_open = True
         emit({"type": "thinking_delta", "agent_name": "data_agent", "delta": delta, "timestamp": now()})
 
+    # Publish generation always needs these two bounded, read-only context reads.
+    # Conversation messages never reach this function because request_filter exits first.
+    for tool_name in sorted(required_grounding_tools):
+        await execute_tool(
+            tool_name,
+            {"folder_id": folder_id, "session_id": state.get("session_id")},
+            f"required_{tool_name}_{uuid.uuid4().hex[:8]}",
+        )
+
     for _ in range(MAX_TOOL_ITERATIONS):
         message, usage = await astream_with_tools(
-            _loop_messages(system_prompt, user_question, evidence),
+            _loop_messages(system_prompt, user_question, evidence, grounding_instruction=grounding_instruction),
             provider.openai_tools,
             model_config,
             on_reasoning=on_reasoning,
@@ -253,11 +369,21 @@ async def _run_tool_loop(state: AgentState, provider: InProcessToolProvider, mod
         tool_calls = message.get("tool_calls") or []
         content = (message.get("content") or "").strip()
 
-        # No more tool calls -> the model's content IS the grounded final answer.
+        # A report cannot finalize until its required evidence tools succeeded.
         if not tool_calls:
             if thinking_open:
                 emit({"type": "thinking_end", "agent_name": "data_agent", "timestamp": now()})
                 thinking_open = False
+            missing = missing_grounding_tools()
+            if missing:
+                if grounding_nudges < 2:
+                    grounding_nudges += 1
+                    grounding_instruction = (
+                        "Do not draft the report yet. Required evidence is still missing. "
+                        f"Call these tools now: {', '.join(missing)}."
+                    )
+                    continue
+                return grounding_failure(missing)
             final_text = content
             break
 
@@ -268,44 +394,20 @@ async def _run_tool_loop(state: AgentState, provider: InProcessToolProvider, mod
             emit({"type": "thinking_end", "agent_name": "data_agent", "timestamp": now()})
             thinking_open = False
 
-        used_tools = True
         for tc in tool_calls:
             name = tc["name"]
             try:
                 args = json.loads(tc["arguments"]) if isinstance(tc["arguments"], str) else dict(tc["arguments"] or {})
             except (TypeError, ValueError):
                 args = {}
-            # Enforce folder scope: the model never controls which folder is read.
-            if FOLDER_SCOPED_ARG in args or name.startswith("data_"):
-                args[FOLDER_SCOPED_ARG] = folder_id
-
-            call_id = tc["id"] or f"tool_{uuid.uuid4().hex[:8]}"
-            display_args = {k: v for k, v in args.items() if k != FOLDER_SCOPED_ARG}
-            emit({
-                "type": "function_request",
-                "tool_name": name,
-                "tool_args": display_args or {"request": name},
-                "call_id": call_id,
-                "agent_name": "data_agent",
-                "timestamp": now(),
-            })
-            try:
-                tool_text = await provider.call(name, args)
-            except Exception as exc:
-                tool_text = f"Tool '{name}' failed: {exc}"
-            emit({
-                "type": "function_response",
-                "tool_name": name,
-                "response": {"result": tool_text[:6000]},
-                "call_id": call_id,
-                "agent_name": "data_agent",
-                "timestamp": now(),
-            })
-            results.append({"tool": name, "args": display_args, "result": tool_text})
-            evidence.append({"tool": name, "args": display_args, "result": tool_text})
+            await execute_tool(name, args, tc["id"] or None)
 
     if thinking_open:
         emit({"type": "thinking_end", "agent_name": "data_agent", "timestamp": now()})
+
+    missing = missing_grounding_tools()
+    if missing:
+        return grounding_failure(missing)
 
     if not final_text and (evidence or used_tools):
         # The model gathered evidence but hit the iteration cap without a final
@@ -327,6 +429,7 @@ async def _run_tool_loop(state: AgentState, provider: InProcessToolProvider, mod
         "tool_results": results,
         "token_usage": usage_total,
         "agent_evidence": used_tools or bool(evidence),
+        "artifacts": artifacts,
     }
     if final_text:
         result["final_response"] = final_text
@@ -338,6 +441,7 @@ def _loop_messages(
     user_question: str,
     evidence: list[dict[str, Any]],
     force_answer: bool = False,
+    grounding_instruction: str = "",
 ) -> list[dict[str, Any]]:
     """Build a fresh message list for one tool-loop turn from the scratchpad."""
     messages: list[dict[str, Any]] = [
@@ -356,74 +460,17 @@ def _loop_messages(
         else:
             scratchpad += "\n\nIf this is enough to answer, reply now with no tool call. Otherwise call another tool."
         messages.append({"role": "user", "content": scratchpad})
+    if grounding_instruction:
+        messages.append({"role": "user", "content": grounding_instruction})
     return messages
 
 
 def tool_executor(state: AgentState) -> dict[str, Any]:
-    if state.get("errors") or state.get("intent") == "conversation":
-        return {}
-
-    # The data agent already produced grounded evidence via tool calls; skip the
-    # deterministic SQL/artifact path to avoid duplicate work and events.
-    if state.get("final_response") or state.get("agent_evidence"):
-        return {}
-
-    intent = state.get("intent") or "analysis"
-    tables = state.get("available_tables") or []
-    results = list(state.get("tool_results") or [])
-    artifacts = list(state.get("artifacts") or [])
-
-    if not tables:
-        return {"tool_results": results, "artifacts": artifacts}
-
-    selected = set(t.lower() for t in state.get("selected_tables") or [])
-    table = next((t for t in tables if t.get("name", "").lower() in selected), tables[0])
-    table_name = table.get("name")
-
-    if not table_name:
-        return {"tool_results": results, "artifacts": artifacts}
-
-    if intent in {"analysis", "data_quality", "chart", "report"}:
-        call_id = f"sql_{uuid.uuid4().hex[:8]}"
-        query = f"SELECT COUNT(*) AS row_count FROM {quote_identifier(table_name)}"
-        emit({
-            "type": "function_request",
-            "tool_name": "execute_select",
-            "tool_args": {"request": query},
-            "call_id": call_id,
-            "agent_name": "data_tools",
-            "timestamp": now(),
-        })
-        result = execute_select(state.get("folder_id"), query, user_id=state.get("user_id"))
-        emit({
-            "type": "function_response",
-            "tool_name": "execute_select",
-            "response": {"result": json.dumps(result, default=str)[:6000]},
-            "call_id": call_id,
-            "agent_name": "data_tools",
-            "timestamp": now(),
-        })
-        results.append({"tool": "execute_select", "query": query, "result": result})
-
-    if intent == "chart":
-        artifacts.append({
-            "type": "chart_spec",
-            "title": f"Starter chart for {table_name}",
-            "data": {
-                "table": table_name,
-                "suggestion": "Choose one categorical column and one numeric column to build a chart.",
-                "columns": table.get("columns", []),
-            },
-        })
-        emit({"type": "status", "title": "Chart", "message": f"Prepared a starter chart plan for {table_name}.", "level": "success", "timestamp": now()})
-
-    if intent == "data_quality":
-        table = dict(table, _user_id=state.get("user_id"))
-        null_results = run_null_profile(state.get("folder_id"), table)
-        if null_results:
-            results.append({"tool": "null_profile", "result": null_results})
-
-    return {"tool_results": results, "artifacts": artifacts}
+    """Compatibility node; all domain tools are selected by the LLM tool loop."""
+    return {
+        "tool_results": list(state.get("tool_results") or []),
+        "artifacts": list(state.get("artifacts") or []),
+    }
 
 
 async def finalizer(state: AgentState) -> dict[str, Any]:
@@ -446,12 +493,17 @@ async def finalizer(state: AgentState) -> dict[str, Any]:
             _emit_answer_chunks(final)
 
     emit({"type": "final_response", "text": final, "agent_name": "responder", "timestamp": now()})
+    artifacts = list(state.get("artifacts") or [])
     emit({
         "type": "completion",
         "final_output": final,
         "time_taken": round(time.time() - start, 2),
         "token_usage": usage_total,
-        "chart_ids": [],
+        "artifact_ids": [item.get("id") for item in artifacts if item.get("id")],
+        "chart_ids": [item.get("id") for item in artifacts if item.get("artifact_type") == "chart"],
+        "selected_table_id": state.get("selected_table_id"),
+        "selected_table_name": state.get("selected_table_name"),
+        "transform_revision": state.get("transform_revision") or 0,
         "query_id": state.get("query_id") or str(uuid.uuid4()),
         "query": state.get("user_message", ""),
         "timestamp": now(),
@@ -515,6 +567,9 @@ Rules:
 - folder_id: {state.get("folder_id") or "none"}
 - session_id: {state.get("session_id") or "none"}
 - intent: {state.get("intent") or "analysis"}
+- selected_table_id: {state.get("selected_table_id") or "none"}
+- selected_table_name: {state.get("selected_table_name") or "none"}
+- transform_revision: {state.get("transform_revision") or 0}
 
 User request:
 {state.get("user_message", "")}
@@ -548,7 +603,7 @@ def build_final_response(state: AgentState) -> str:
         return llm_response
 
     if not tables:
-        return "I don't see any tables in this folder yet. Upload a CSV or spreadsheet in Sources, then ask me again."
+        return "I don't see any tables in this folder yet. Upload a CSV or spreadsheet in Prepare, then ask me again."
 
     table_names = ", ".join(t.get("name", "unknown") for t in tables[:5])
     row_notes = []

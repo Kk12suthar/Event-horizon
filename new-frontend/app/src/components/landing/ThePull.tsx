@@ -1,299 +1,136 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Activity, Magnet, Radio } from "lucide-react";
+import type { FC } from "react";
+import { motion } from "motion/react";
+import {
+  ArrowRight,
+  BarChart3,
+  Check,
+  FileOutput,
+  Files,
+  Folder,
+  Table2,
+} from "lucide-react";
 
-export const ThePull: React.FC = () => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [logs, setLogs] = useState<string[]>([]);
-  const [hoveredCoords, setHoveredCoords] = useState<{ x: number; y: number } | null>(null);
+const stages = [
+  {
+    number: "01",
+    name: "Prepare",
+    description: "Upload folder sources, ask the agent to inspect, clean, join, and validate them, then save the table you trust.",
+    outcome: "One selected table",
+    icon: Table2,
+  },
+  {
+    number: "02",
+    name: "Visualize",
+    description: "The visualization agent works from that selected table to build KPIs, charts, and reusable dashboard views.",
+    outcome: "Saved dashboard artifacts",
+    icon: BarChart3,
+  },
+  {
+    number: "03",
+    name: "Publish",
+    description: "Report sections use the same prepared table and saved visuals, keeping every conclusion tied to a common source.",
+    outcome: "HTML, PDF, PPTX, DOCX",
+    icon: FileOutput,
+  },
+];
 
-  // Generate real-time chaotic scrolling data logs
-  useEffect(() => {
-    const logInterval = setInterval(() => {
-      const entropy = (Math.random() * 100).toFixed(4);
-      const nodeId = Math.floor(Math.random() * 9999);
-      const r = (1.5 + Math.random() * 6).toFixed(3);
-      const v = (0.5 + Math.random() * 0.499).toFixed(5);
-      
-      const newLogs = [
-        `[INFLOW] node_id=${nodeId} :: raw_entropy=${entropy} :: distance=${r}Rs`,
-        `[GRAV_ACCEL] pull_factor=${(10 / parseFloat(r)).toFixed(2)}x :: velocity=${v}c`,
-        `[GEODESIC] coordinate_warp_offset=[${(Math.random() - 0.5).toFixed(3)}, ${(Math.random() - 0.5).toFixed(3)}]`,
-      ];
-      
-      setLogs((prev) => [...prev, ...newLogs].slice(-15));
-    }, 450);
+const projectRows = [
+  { label: "Sources", detail: "3 files", icon: Files, muted: true },
+  { label: "sales_clean", detail: "Prepared table", icon: Table2, active: true },
+  { label: "Executive dashboard", detail: "4 saved charts", icon: BarChart3 },
+  { label: "Board review", detail: "3 report formats", icon: FileOutput },
+];
 
-    return () => clearInterval(logInterval);
-  }, []);
-
-  // Interactive Particle Pull Grid (Canvas)
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    let animFrame = 0;
-    const points: {
-      x: number;
-      y: number;
-      vx: number;
-      vy: number;
-      size: number;
-      alpha: number;
-      color: string;
-      id: string;
-    }[] = [];
-
-    // Initialize 160 random chaotic points
-    for (let i = 0; i < 160; i++) {
-      points.push({
-        x: Math.random() * 400,
-        y: Math.random() * 400,
-        vx: (Math.random() - 0.5) * 1.5,
-        vy: (Math.random() - 0.5) * 1.5,
-        size: 1 + Math.random() * 2.5,
-        alpha: 0.1 + Math.random() * 0.5,
-        color: Math.random() > 0.6 ? "rgba(193, 110, 67, " : "rgba(205, 150, 95, ",
-        id: `N-${Math.floor(1000 + Math.random() * 9000)}`,
-      });
-    }
-
-    const draw = () => {
-      ctx.fillStyle = "rgba(5, 5, 8, 0.35)"; // fade to trace with atmospheric void background
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Center of the canvas acts as the main gravity well
-      const cx = canvas.width / 2;
-      const cy = canvas.height / 2;
-
-      // Draw subtle lensed field lines
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.02)";
-      ctx.lineWidth = 1;
-      for (let r = 40; r < 240; r += 40) {
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-
-      // Draw gravity well vortex
-      ctx.fillStyle = "rgba(193, 110, 67, 0.03)";
-      ctx.beginPath();
-      ctx.arc(cx, cy, 35, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Update and draw points
-      points.forEach((p) => {
-        // Core gravity pull towards center (cx, cy)
-        const dx = cx - p.x;
-        const dy = cy - p.y;
-        const distSq = dx * dx + dy * dy;
-        const dist = Math.sqrt(distSq);
-
-        // Core Black hole gravity force
-        let pull = 18.0 / Math.max(30, dist);
-        if (dist < 40) {
-          // Cross horizon: collapse to singularity, respawn
-          p.x = Math.random() * canvas.width;
-          p.y = Math.random() * canvas.height;
-          p.vx = (Math.random() - 0.5) * 1.5;
-          p.vy = (Math.random() - 0.5) * 1.5;
-          return;
-        }
-
-        // Apply core acceleration
-        p.vx += (dx / dist) * pull * 0.05;
-        p.vy += (dy / dist) * pull * 0.05;
-
-        // Pointer-based gravity pull if hovered
-        if (hoveredCoords) {
-          const pdx = hoveredCoords.x - p.x;
-          const pdy = hoveredCoords.y - p.y;
-          const pdist = Math.sqrt(pdx * pdx + pdy * pdy);
-          if (pdist < 120) {
-            const pPull = (120 - pdist) * 0.04;
-            p.vx += (pdx / pdist) * pPull * 0.05;
-            p.vy += (pdy / pdist) * pPull * 0.05;
-          }
-        }
-
-        // Apply friction
-        p.vx *= 0.96;
-        p.vy *= 0.96;
-
-        // Position update
-        p.x += p.vx;
-        p.y += p.vy;
-
-        // Render point
-        ctx.fillStyle = p.color + p.alpha.toFixed(2) + ")";
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Connect points that are close to visualize chaotic data mesh
-        points.forEach((p2) => {
-          if (p === p2) return;
-          const cdx = p.x - p2.x;
-          const cdy = p.y - p2.y;
-          const cdist = cdx * cdx + cdy * cdy;
-          if (cdist < 1400) {
-            const connAlpha = (1.0 - Math.sqrt(cdist) / 38) * 0.14 * p.alpha;
-            ctx.strokeStyle = `rgba(193, 110, 67, ${connAlpha.toFixed(2)})`;
-            ctx.lineWidth = 0.5;
-            ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.stroke();
-          }
-        });
-
-        // Hover effect helper - draw tiny node labels
-        if (hoveredCoords) {
-          const pdx = hoveredCoords.x - p.x;
-          const pdy = hoveredCoords.y - p.y;
-          const pdist = Math.sqrt(pdx * pdx + pdy * pdy);
-          if (pdist < 30) {
-            ctx.font = "8px monospace";
-            ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
-            ctx.fillText(p.id, p.x + 6, p.y - 4);
-          }
-        }
-      });
-
-      animFrame = requestAnimationFrame(draw);
-    };
-
-    draw();
-
-    return () => {
-      cancelAnimationFrame(animFrame);
-    };
-  }, [hoveredCoords]);
-
-  // Handle pointer tracking over the simulation canvas
-  const handlePointerMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    setHoveredCoords({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    });
-  };
-
-  const handlePointerLeave = () => {
-    setHoveredCoords(null);
-  };
-
+export const ThePull: FC = () => {
   return (
     <section
-      id="section-pull"
-      ref={containerRef}
-      className="relative min-h-screen w-full flex flex-col justify-center items-center py-24 px-6 z-10 border-b border-white/[0.02]"
+      id="section-workflow"
+      className="relative w-full border-y border-white/[0.07] bg-black/90 px-4 py-24 backdrop-blur-xl sm:px-6 lg:px-10 lg:py-32"
     >
-      <div className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-        {/* Left Side: Editorial copywriting & status trackers */}
-        <div className="lg:col-span-5 space-y-8 text-left">
-          <h2 className="font-display font-semibold text-3xl md:text-5xl text-white tracking-tight uppercase">
-            Bring In Your Data
-            <span className="block text-zinc-500 font-light text-xl md:text-2xl mt-2 lowercase font-sans">
-              organized by project and folder
-            </span>
-          </h2>
+      <div className="mx-auto w-full max-w-[1440px]">
+        <div className="grid gap-12 lg:grid-cols-12 lg:items-end">
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.35 }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            className="lg:col-span-7"
+          >
+            <p className="font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-500">
+              One continuous data lineage
+            </p>
+            <h2 className="mt-4 max-w-4xl font-display text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-6xl">
+              One folder. One prepared table. Every output.
+            </h2>
+          </motion.div>
 
-          <p className="text-zinc-400 text-sm font-sans leading-relaxed font-light">
-            Create a project, add a folder, and upload your datasets. CSV files and
-            tables land in a shared workspace the agent can reach &mdash; no rigid schema
-            setup, no manual wiring. Everything you bring orbits the same folder
-            context, ready for the next stage.
-          </p>
-
-          {/* Interactive cursor gravity badge info */}
-          <div className="p-4 bg-white/[0.01] border border-white/[0.04] rounded-lg flex items-start gap-4">
-            <div className="p-2 bg-plasma-orange/10 rounded-md">
-              <Magnet className="w-5 h-5 text-plasma-orange" />
-            </div>
-            <div className="space-y-1">
-              <p className="text-[11px] text-zinc-500 leading-normal">
-                Move your cursor over the telemetry grid on the right to feel the
-                folder&rsquo;s gravity &mdash; a playful preview of data being drawn into a
-                single workspace context.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/[0.04]">
-            <div>
-              <span className="block text-[8px] font-mono text-zinc-500 uppercase tracking-wider">
-                SUPPORTED DATA
-              </span>
-              <span className="block text-sm font-mono text-zinc-300 font-medium">
-                CSV, Tables, Files
-              </span>
-            </div>
-            <div>
-              <span className="block text-[8px] font-mono text-zinc-500 uppercase tracking-wider">
-                ORGANIZED INTO
-              </span>
-              <span className="block text-sm font-mono text-zinc-300 font-medium text-glow-orange">
-                Projects & Folders
-              </span>
-            </div>
-          </div>
+          <motion.p
+            initial={{ opacity: 0, y: 14 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.35 }}
+            transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            className="max-w-xl text-sm leading-6 text-zinc-400 sm:text-base lg:col-span-5"
+          >
+            Project folders hold the working context. Sources belong to Prepare; Visualize and Publish unlock only after a prepared table is selected, and both continue from that same table.
+          </motion.p>
         </div>
 
-        {/* Right Side: The live coordinates grid & falling particles canvas */}
-        <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-12 gap-6 w-full h-[400px] md:h-[450px]">
-          {/* Telemetry scrolling feed monitor */}
-          <div className="md:col-span-5 h-full bg-coal border border-white/[0.04] rounded-xl flex flex-col overflow-hidden relative noise-bg">
-            <div className="px-4 py-2.5 bg-void border-b border-white/[0.04] flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-plasma-purple animate-ping" />
-                <span className="font-mono text-[9px] tracking-wider text-zinc-400 uppercase">
-                  Telemetry Stream
-                </span>
+        <div className="mt-16 grid overflow-hidden rounded-lg border border-white/[0.09] bg-[#070707] lg:grid-cols-[0.82fr_1.5fr]">
+          <div className="border-b border-white/[0.08] p-5 sm:p-7 lg:border-b-0 lg:border-r">
+            <div className="flex items-center gap-2 border-b border-white/[0.08] pb-5">
+              <Folder className="h-4 w-4 text-zinc-300" aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="truncate text-xs font-medium text-white">Revenue Operations</p>
+                <p className="mt-0.5 truncate font-mono text-[9px] text-zinc-600">FY26 / Global sales</p>
               </div>
-              <Radio className="w-3.5 h-3.5 text-zinc-600 animate-pulse" />
             </div>
 
-            <div className="flex-1 p-4 font-mono text-[9px] text-zinc-500 overflow-y-hidden space-y-1.5 leading-normal select-none">
-              {logs.map((log, idx) => (
-                <div
-                  key={idx}
-                  className={`truncate transition-all duration-300 ${
-                    log.includes("[INFLOW]") ? "text-zinc-400" : log.includes("[GRAV_ACCEL]") ? "text-plasma-orange/80" : "text-plasma-purple/75"
-                  }`}
-                >
-                  {log}
-                </div>
-              ))}
+            <div className="py-2">
+              {projectRows.map((row) => {
+                const Icon = row.icon;
+                return (
+                  <div
+                    key={row.label}
+                    className={`flex min-h-14 items-center gap-3 border-b border-white/[0.05] px-1 ${row.muted ? "text-zinc-500" : "text-zinc-300"} ${row.active ? "bg-primary/[0.06]" : ""}`}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <div className="min-w-0 flex-1">
+                      <p className={`truncate text-xs ${row.active ? "font-medium text-white" : ""}`}>{row.label}</p>
+                      <p className="mt-0.5 truncate font-mono text-[9px] text-zinc-600">{row.detail}</p>
+                    </div>
+                    {row.active && <Check className="h-3.5 w-3.5 text-primary" aria-label="Selected" />}
+                  </div>
+                );
+              })}
             </div>
-            
-            <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-coal to-transparent pointer-events-none" />
           </div>
 
-          {/* Interactive attractor gravity well canvas */}
-          <div className="md:col-span-7 h-full bg-coal border border-white/[0.04] rounded-xl relative overflow-hidden flex flex-col noise-bg">
-            <div className="px-4 py-2.5 bg-void border-b border-white/[0.04] flex justify-between items-center z-10">
-              <span className="font-mono text-[9px] tracking-wider text-zinc-400 uppercase">
-                GEODESIC INTAKE MONITOR
-              </span>
-              <Activity className="w-3.5 h-3.5 text-plasma-orange animate-pulse" />
-            </div>
-
-            <div className="flex-1 relative flex items-center justify-center bg-[#000000]">
-              <canvas
-                ref={canvasRef}
-                width={400}
-                height={400}
-                onMouseMove={handlePointerMove}
-                onMouseLeave={handlePointerLeave}
-                className="w-full h-full max-w-[400px] max-h-[400px] cursor-crosshair mix-blend-screen"
-              />
-            </div>
+          <div className="grid sm:grid-cols-3">
+            {stages.map((stage, index) => {
+              const Icon = stage.icon;
+              return (
+                <div
+                  key={stage.name}
+                  className={`relative flex min-h-72 flex-col justify-between p-6 sm:min-h-80 lg:p-7 ${index > 0 ? "border-t border-white/[0.08] sm:border-l sm:border-t-0" : ""}`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-[10px] text-zinc-600">{stage.number}</span>
+                      <Icon className="h-4 w-4 text-zinc-500" aria-hidden="true" />
+                    </div>
+                    <h3 className="mt-8 font-display text-xl font-semibold text-white">{stage.name}</h3>
+                    <p className="mt-4 text-sm leading-6 text-zinc-500">{stage.description}</p>
+                  </div>
+                  <div className="mt-8 flex items-center gap-2 border-t border-white/[0.07] pt-4 text-xs text-zinc-300">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary/80" aria-hidden="true" />
+                    {stage.outcome}
+                  </div>
+                  {index < stages.length - 1 && (
+                    <ArrowRight className="absolute -right-2.5 top-1/2 z-10 hidden h-5 w-5 -translate-y-1/2 bg-[#070707] text-zinc-600 sm:block" aria-hidden="true" />
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

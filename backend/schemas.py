@@ -256,6 +256,24 @@ class SessionOut(BaseModel):
     entities: Optional[Any] = None
 
 
+class SessionWorkspaceSelection(BaseModel):
+    session_id: str = Field(..., description="Active session UUID")
+    folder_id: str = Field(..., description="Folder UUID that owns the session")
+    table_id: str = Field(..., description="Stable ID of an agent-created prepared table")
+
+
+class SessionArtifactUpsert(BaseModel):
+    session_id: str = Field(..., description="Active session UUID")
+    folder_id: str = Field(..., description="Folder UUID that owns the session")
+    artifact: dict[str, Any] = Field(..., description="Typed chart, report, or report-draft artifact")
+
+
+class SessionArtifactDelete(BaseModel):
+    session_id: str = Field(..., description="Active session UUID")
+    folder_id: str = Field(..., description="Folder UUID that owns the session")
+    artifact_id: str = Field(..., description="Artifact UUID")
+
+
 # ---------------------------------------------------------------------------
 # Table
 # ---------------------------------------------------------------------------

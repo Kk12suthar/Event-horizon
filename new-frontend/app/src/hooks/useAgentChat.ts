@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { streamSse } from '../lib/api';
 import { streamUrlForMode } from './usePipelineStage';
-import type { ChatMessage, Folder, MessageType, Session, TokenUsage, User, WorkspaceMode } from '../types';
+import type { ChartWidget, ChatMessage, DataTable, Folder, MessageType, Session, TokenUsage, User, WorkspaceMode } from '../types';
 
 /**
  * Raw SSE event payload as delivered by `streamSse` (see `lib/api.ts`).
@@ -43,6 +43,59 @@ export function terminalFinalOutput(event: SseEvent): string {
   return '';
 }
 
+function chartArtifactFromEvent(event: SseEvent): ChartWidget | null {
+  const raw = event.artifact ?? event.data;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const artifact = raw as Record<string, unknown>;
+  const artifactType = String(event.artifact_type || artifact.artifact_type || '');
+  const type = String(artifact.type || '');
+  if (artifactType !== 'chart' || !artifact.id || !['line', 'bar', 'area', 'pie', 'radial', 'kpi'].includes(type)) {
+    return null;
+  }
+  const data = Array.isArray(artifact.data)
+    ? artifact.data.map((value) => {
+        const point = value && typeof value === 'object' && !Array.isArray(value)
+          ? value as Record<string, unknown>
+          : {};
+        return { label: String(point.label || ''), value: Number(point.value || 0) };
+      })
+    : [];
+  if (data.length === 0) return null;
+  const config = artifact.config && typeof artifact.config === 'object' && !Array.isArray(artifact.config)
+    ? artifact.config as Record<string, unknown>
+    : {};
+  const position = artifact.position && typeof artifact.position === 'object' && !Array.isArray(artifact.position)
+    ? artifact.position as Record<string, unknown>
+    : {};
+  return {
+    id: String(artifact.id),
+    artifact_type: 'chart',
+    name: String(artifact.name || artifact.title || 'Chart preview'),
+    title: String(artifact.title || artifact.name || 'Chart preview'),
+    type: type as ChartWidget['type'],
+    data,
+    config: {
+      primaryColor: String(config.primaryColor || '#F4F4F5'),
+      showGrid: config.showGrid !== false,
+      showLegend: config.showLegend === true,
+      showTooltip: config.showTooltip !== false,
+    },
+    position: {
+      x: Number(position.x || 0),
+      y: Number(position.y || 0),
+      w: Number(position.w || (type === 'kpi' ? 4 : 12)),
+      h: Number(position.h || (type === 'kpi' ? 3 : 6)),
+    },
+    sourceTableId: String(artifact.sourceTableId || artifact.source_table_id || ''),
+    source_table_id: String(artifact.source_table_id || artifact.sourceTableId || ''),
+    xField: String(artifact.xField || ''),
+    yFields: Array.isArray(artifact.yFields) ? artifact.yFields.map(String) : [],
+    transformRevision: Number(artifact.transformRevision || artifact.transform_revision || 0),
+    transform_revision: Number(artifact.transform_revision || artifact.transformRevision || 0),
+    status: String(artifact.status || 'draft') === 'ready' ? 'ready' : 'draft',
+    createdAt: String(artifact.createdAt || artifact.created_at || ''),
+  };
+}
 /**
  * Mode-independent mapping from an SSE event to a {@link ChatMessageDraft}.
  *
@@ -68,8 +121,17 @@ export function mapSseEventToMessage(event: SseEvent): ChatMessageDraft | null {
     case 'stream_start':
     case 'status':
     case 'stream':
-    case 'artifact':
       return null;
+
+    case 'artifact': {
+      const artifact = chartArtifactFromEvent(event);
+      if (!artifact) return null;
+      return {
+        type: 'chart_result',
+        content: artifact.name,
+        metadata: { artifact, artifactStatus: artifact.status === 'ready' ? 'saved' : 'draft' },
+      };
+    }
 
     case 'tool_call':
     case 'function_request': {
@@ -79,6 +141,7 @@ export function mapSseEventToMessage(event: SseEvent): ChatMessageDraft | null {
         content: `${toolName} requested`,
         metadata: {
           toolName,
+          callId: String(event.call_id || event.id || toolName),
           toolStatus: 'pending',
           toolArgs: event.tool_args,
         },
@@ -96,8 +159,11 @@ export function mapSseEventToMessage(event: SseEvent): ChatMessageDraft | null {
         content: `${toolName} completed`,
         metadata: {
           toolName,
+          callId: String(event.call_id || event.id || toolName),
           toolStatus: 'complete',
           toolResponse: response,
+          durationMs: typeof event.duration_ms === 'number' ? event.duration_ms : undefined,
+          success: event.success !== false,
         },
       };
     }
@@ -131,6 +197,10 @@ export interface UseAgentChatContext {
   session: Session | null;
   /** Authenticated user; `send` is a no-op when null. */
   user: User | null;
+  /** Prepared table selected for Visualize and Publish. */
+  selectedTable?: DataTable | null;
+  /** The currently active workspace mode - drives per-mode message isolation. */
+  mode: WorkspaceMode;
   /** Lazily creates/returns the folder session before streaming. */
   ensureSession: () => Promise<Session | null>;
   /**
@@ -143,18 +213,36 @@ export interface UseAgentChatContext {
 
 /** Public surface returned by {@link useAgentChat}. */
 export interface UseAgentChat {
+  /** Messages for the currently active mode only. */
   messages: ChatMessage[];
+  /** Whether the currently active mode is generating. */
   isGenerating: boolean;
   /** Stream a query in the given mode. No-op when already generating or missing folder/user. */
   send: (query: string, mode: WorkspaceMode) => Promise<void>;
   /** Abort the in-flight request (user-initiated). Does not fire `onCompletion`. */
   stop: () => void;
-  /** Clear the thread and abort any in-flight request. */
+  /** Clear the current mode's thread and abort any in-flight request for that mode. */
   reset: () => void;
+  /** Clear ALL mode threads (used when switching folders). */
+  resetAll: () => void;
+}
+
+/** Initial empty per-mode message store. */
+function emptyModeMessages(): Record<WorkspaceMode, ChatMessage[]> {
+  return { sources: [], prepare: [], visualize: [], publish: [] };
+}
+
+/** Initial empty per-mode generating flags. */
+function emptyModeGenerating(): Record<WorkspaceMode, boolean> {
+  return { sources: false, prepare: false, visualize: false, publish: false };
 }
 
 /**
- * Shared, mode-independent chat streaming hook.
+ * Shared, mode-isolated chat streaming hook.
+ *
+ * Maintains separate message arrays and generating flags per mode so that
+ * Prepare, Visualize, and Publish each have their own independent chat thread.
+ * Switching modes instantly swaps the visible messages without losing history.
  *
  * Streams via {@link streamSse} to the endpoint chosen by {@link streamUrlForMode},
  * mapping every SSE event through the pure {@link mapSseEventToMessage} so the
@@ -169,10 +257,12 @@ export interface UseAgentChat {
  *     once, and aborts/errors never fire it.
  *   - **Abort via `AbortController`** - `stop()` aborts the in-flight request;
  *     the controller is also aborted on unmount.
+ *   - **Per-mode isolation** - messages from mode A never appear in mode B's
+ *     chat thread.
  */
 export function useAgentChat(ctx: UseAgentChatContext): UseAgentChat {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [modeMessages, setModeMessages] = useState<Record<WorkspaceMode, ChatMessage[]>>(emptyModeMessages);
+  const [modeGenerating, setModeGenerating] = useState<Record<WorkspaceMode, boolean>>(emptyModeGenerating);
 
   // Keep the latest context in a ref so the returned callbacks stay stable
   // (referentially identical) across renders without going stale.
@@ -184,56 +274,73 @@ export function useAgentChat(ctx: UseAgentChatContext): UseAgentChat {
   const hasFinalRef = useRef(false);
   const completedRef = useRef(false);
   const seqRef = useRef(0);
+  // Track which mode the current in-flight stream belongs to.
+  const activeModeRef = useRef<WorkspaceMode | null>(null);
   // Ids of the in-flight streaming messages so deltas can mutate them in place.
   const answerIdRef = useRef<string | null>(null);
   const thinkingIdRef = useRef<string | null>(null);
+  const toolMessageIdsRef = useRef<Map<string, string>>(new Map());
+
+  // Reset all mode threads when the folder changes.
+  const prevFolderIdRef = useRef<string | null>(ctx.folder?.id ?? null);
+  useEffect(() => {
+    const currentFolderId = ctx.folder?.id ?? null;
+    if (prevFolderIdRef.current !== currentFolderId) {
+      prevFolderIdRef.current = currentFolderId;
+      abortRef.current?.abort();
+      abortRef.current = null;
+      generatingRef.current = false;
+      activeModeRef.current = null;
+      toolMessageIdsRef.current.clear();
+      setModeMessages(emptyModeMessages());
+      setModeGenerating(emptyModeGenerating());
+    }
+  }, [ctx.folder?.id]);
 
   // Abort any in-flight request when the component using the hook unmounts.
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  const appendMessage = useCallback((draft: ChatMessageDraft): string => {
+  const appendMessage = useCallback((targetMode: WorkspaceMode, draft: ChatMessageDraft): string => {
     const id = `msg_${Date.now()}_${seqRef.current++}`;
-    setMessages((prev) => [
+    setModeMessages((prev) => ({
       ...prev,
-      { ...draft, id, timestamp: new Date().toISOString() },
-    ]);
+      [targetMode]: [...prev[targetMode], { ...draft, id, timestamp: new Date().toISOString() }],
+    }));
     return id;
   }, []);
 
   const updateMessage = useCallback(
-    (id: string, updater: (message: ChatMessage) => ChatMessage) => {
-      setMessages((prev) => prev.map((message) => (message.id === id ? updater(message) : message)));
+    (targetMode: WorkspaceMode, id: string, updater: (message: ChatMessage) => ChatMessage) => {
+      setModeMessages((prev) => ({
+        ...prev,
+        [targetMode]: prev[targetMode].map((message) => (message.id === id ? updater(message) : message)),
+      }));
     },
     [],
   );
 
-  // Backwards-compatible append (ignores the returned id).
-  const pushDraft = useCallback(
-    (draft: ChatMessageDraft) => {
-      appendMessage(draft);
-    },
-    [appendMessage],
-  );
-
-  const stopGenerating = useCallback(() => {
+  const stopGenerating = useCallback((targetMode: WorkspaceMode) => {
     generatingRef.current = false;
-    setIsGenerating(false);
+    activeModeRef.current = null;
+    setModeGenerating((prev) => ({ ...prev, [targetMode]: false }));
   }, []);
 
   const send = useCallback(
     async (query: string, mode: WorkspaceMode) => {
       const trimmed = query.trim();
-      const { folder, user, session, ensureSession, onCompletion } = ctxRef.current;
+      const { folder, user, session, selectedTable, ensureSession, onCompletion } = ctxRef.current;
       if (!trimmed || generatingRef.current || !folder || !user) return;
 
-      // Append the user's message immediately, then reset per-request guards.
-      pushDraft({ type: 'user', content: trimmed });
+      // Append the user's message to the correct mode's thread, then reset per-request guards.
+      appendMessage(mode, { type: 'user', content: trimmed });
       generatingRef.current = true;
-      setIsGenerating(true);
+      activeModeRef.current = mode;
+      setModeGenerating((prev) => ({ ...prev, [mode]: true }));
       hasFinalRef.current = false;
       completedRef.current = false;
       answerIdRef.current = null;
       thinkingIdRef.current = null;
+      toolMessageIdsRef.current.clear();
 
       const controller = new AbortController();
       abortRef.current = controller;
@@ -247,23 +354,21 @@ export function useAgentChat(ctx: UseAgentChatContext): UseAgentChat {
       try {
         const ensured = await ensureSession();
         const sessionId = ensured?.id || session?.id || '';
+        const surface = mode === 'visualize' ? 'dashboard' : mode === 'publish' ? 'report' : 'chat';
+        const baseBody: Record<string, unknown> = {
+          user_id: user.id,
+          session_id: sessionId,
+          folder_id: folder.id,
+          project_id: folder.projectId,
+          query: trimmed,
+          surface,
+          selected_table_id: selectedTable?.id || null,
+          selected_table_name: selectedTable?.name || null,
+          selected_tables: selectedTable ? [selectedTable.id] : [],
+        };
         const streamBody: Record<string, unknown> = mode === 'publish'
-          ? {
-              user_id: user.id,
-              session_id: sessionId,
-              project_id: folder.projectId,
-              query: trimmed,
-              mode: 'specific',
-              format: 'pdf',
-              selected_tables: [],
-            }
-          : {
-              user_id: user.id,
-              session_id: sessionId,
-              folder_id: folder.id,
-              project_id: folder.projectId,
-              query: trimmed,
-            };
+          ? { ...baseBody, mode: 'specific', format: 'pdf' }
+          : baseBody;
         await streamSse(
           streamUrlForMode(mode, folder.id),
           streamBody,
@@ -279,7 +384,7 @@ export function useAgentChat(ctx: UseAgentChatContext): UseAgentChat {
                 const timeTaken = typeof event.time_taken === 'number' ? event.time_taken : undefined;
                 if (answerIdRef.current) {
                   const id = answerIdRef.current;
-                  updateMessage(id, (m) => ({
+                  updateMessage(mode, id, (m) => ({
                     ...m,
                     content: finalOutput || m.content,
                     metadata: {
@@ -291,20 +396,52 @@ export function useAgentChat(ctx: UseAgentChatContext): UseAgentChat {
                   }));
                 } else if (finalOutput && !hasFinalRef.current) {
                   hasFinalRef.current = true;
-                  appendMessage({ type: 'agent', content: finalOutput, metadata: { tokenUsage: usage, timeTaken } });
+                  appendMessage(mode, { type: 'agent', content: finalOutput, metadata: { tokenUsage: usage, timeTaken } });
                 }
                 hasFinalRef.current = true;
                 answerIdRef.current = null;
                 thinkingIdRef.current = null;
-                stopGenerating();
-                fireCompletion();
+                stopGenerating(mode);
+                if (event.success !== false && !event.error) fireCompletion();
                 return;
               }
 
               switch (type) {
+                case 'tool_call':
+                case 'function_request': {
+                  const draft = mapSseEventToMessage(event);
+                  if (!draft) return;
+                  const callId = String(event.call_id || event.id || event.tool_name || 'tool');
+                  const messageId = appendMessage(mode, draft);
+                  toolMessageIdsRef.current.set(callId, messageId);
+                  return;
+                }
+                case 'tool_response':
+                case 'function_response': {
+                  const draft = mapSseEventToMessage(event);
+                  if (!draft) return;
+                  const callId = String(event.call_id || event.id || event.tool_name || 'tool');
+                  const messageId = toolMessageIdsRef.current.get(callId);
+                  if (messageId) {
+                    updateMessage(mode, messageId, (message) => ({
+                      ...message,
+                      type: 'tool_response',
+                      content: draft.content,
+                      metadata: {
+                        ...message.metadata,
+                        ...draft.metadata,
+                        toolArgs: message.metadata?.toolArgs,
+                      },
+                    }));
+                    toolMessageIdsRef.current.delete(callId);
+                  } else {
+                    appendMessage(mode, draft);
+                  }
+                  return;
+                }
                 // Agent hand-off marker rendered in the activity trail.
                 case 'agent_transition': {
-                  appendMessage({
+                  appendMessage(mode, {
                     type: 'transition',
                     content: String(event.label || event.to_agent || 'Agent'),
                     metadata: {
@@ -317,7 +454,7 @@ export function useAgentChat(ctx: UseAgentChatContext): UseAgentChat {
                 }
                 // Collapsible reasoning block, accumulated from streamed deltas.
                 case 'thinking_start': {
-                  thinkingIdRef.current = appendMessage({
+                  thinkingIdRef.current = appendMessage(mode, {
                     type: 'thinking',
                     content: '',
                     metadata: { agentName: String(event.agent_name || ''), streaming: true },
@@ -328,18 +465,18 @@ export function useAgentChat(ctx: UseAgentChatContext): UseAgentChat {
                   const delta = String(event.delta || '');
                   if (!delta) return;
                   if (!thinkingIdRef.current) {
-                    thinkingIdRef.current = appendMessage({
+                    thinkingIdRef.current = appendMessage(mode, {
                       type: 'thinking',
                       content: '',
                       metadata: { agentName: String(event.agent_name || ''), streaming: true },
                     });
                   }
-                  updateMessage(thinkingIdRef.current, (m) => ({ ...m, content: m.content + delta }));
+                  updateMessage(mode, thinkingIdRef.current, (m) => ({ ...m, content: m.content + delta }));
                   return;
                 }
                 case 'thinking_end': {
                   if (thinkingIdRef.current) {
-                    updateMessage(thinkingIdRef.current, (m) => ({
+                    updateMessage(mode, thinkingIdRef.current, (m) => ({
                       ...m,
                       metadata: { ...m.metadata, streaming: false },
                     }));
@@ -352,20 +489,20 @@ export function useAgentChat(ctx: UseAgentChatContext): UseAgentChat {
                   const delta = String(event.delta || '');
                   if (!delta) return;
                   if (!answerIdRef.current) {
-                    answerIdRef.current = appendMessage({ type: 'agent', content: '', metadata: { streaming: true } });
+                    answerIdRef.current = appendMessage(mode, { type: 'agent', content: '', metadata: { streaming: true } });
                     hasFinalRef.current = true;
                   }
-                  updateMessage(answerIdRef.current, (m) => ({ ...m, content: m.content + delta }));
+                  updateMessage(mode, answerIdRef.current, (m) => ({ ...m, content: m.content + delta }));
                   return;
                 }
                 // Full final text: reconcile the streamed bubble (or create one).
                 case 'final_response': {
                   const text = String(event.text || event.message || '');
                   if (answerIdRef.current) {
-                    updateMessage(answerIdRef.current, (m) => ({ ...m, content: text || m.content }));
+                    updateMessage(mode, answerIdRef.current, (m) => ({ ...m, content: text || m.content }));
                   } else if (!hasFinalRef.current) {
                     hasFinalRef.current = true;
-                    answerIdRef.current = appendMessage({ type: 'agent', content: text });
+                    answerIdRef.current = appendMessage(mode, { type: 'agent', content: text });
                   }
                   return;
                 }
@@ -377,42 +514,72 @@ export function useAgentChat(ctx: UseAgentChatContext): UseAgentChat {
                     if (hasFinalRef.current) return;
                     hasFinalRef.current = true;
                   }
-                  if (draft.type === 'error') stopGenerating();
-                  appendMessage(draft);
+                  if (draft.type === 'error') stopGenerating(mode);
+                  appendMessage(mode, draft);
                 }
               }
             },
             onError: (error) => {
-              pushDraft({ type: 'error', content: error.message });
-              stopGenerating();
+              appendMessage(mode, { type: 'error', content: error.message });
+              stopGenerating(mode);
             },
           },
           controller.signal,
         );
       } finally {
-        stopGenerating();
+        stopGenerating(mode);
         if (abortRef.current === controller) abortRef.current = null;
       }
     },
-    [appendMessage, pushDraft, stopGenerating, updateMessage],
+    [appendMessage, stopGenerating, updateMessage],
   );
 
   const stop = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
-    stopGenerating();
+    const activeMode = activeModeRef.current;
+    if (activeMode) stopGenerating(activeMode);
+    else {
+      generatingRef.current = false;
+      setModeGenerating(emptyModeGenerating());
+    }
   }, [stopGenerating]);
 
   const reset = useCallback(() => {
-    abortRef.current?.abort();
-    abortRef.current = null;
-    stopGenerating();
+    const currentMode = ctxRef.current.mode;
+    if (activeModeRef.current === currentMode) {
+      abortRef.current?.abort();
+      abortRef.current = null;
+      generatingRef.current = false;
+      activeModeRef.current = null;
+    }
     hasFinalRef.current = false;
     completedRef.current = false;
     answerIdRef.current = null;
     thinkingIdRef.current = null;
-    setMessages([]);
-  }, [stopGenerating]);
+    toolMessageIdsRef.current.clear();
+    setModeMessages((prev) => ({ ...prev, [currentMode]: [] }));
+    setModeGenerating((prev) => ({ ...prev, [currentMode]: false }));
+  }, []);
 
-  return { messages, isGenerating, send, stop, reset };
+  const resetAll = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    generatingRef.current = false;
+    activeModeRef.current = null;
+    hasFinalRef.current = false;
+    completedRef.current = false;
+    answerIdRef.current = null;
+    thinkingIdRef.current = null;
+    toolMessageIdsRef.current.clear();
+    setModeMessages(emptyModeMessages());
+    setModeGenerating(emptyModeGenerating());
+  }, []);
+
+  // Expose only the current mode's messages and generating state.
+  const currentMode = ctx.mode;
+  const messages = modeMessages[currentMode];
+  const isGenerating = modeGenerating[currentMode];
+
+  return { messages, isGenerating, send, stop, reset, resetAll };
 }

@@ -14,7 +14,7 @@ import { SPACE } from './theme';
  *
  * Renders the three modes in pipeline order (Prepare Â· Visualize Â·
  * Publish) as a compact segmented control with 16â€“18px icons. The active mode
- * uses a faint `#E4E4E7`/10 background with `#E4E4E7` text; inactive modes use
+ * uses the shared muted-orange selection treatment; inactive modes use
  * muted `#8C8C8C` text with a `#1E1E1E` hover fill (Requirement 3.2).
  *
  * Gating (Requirement 3.6): a disabled mode renders at 40% opacity with
@@ -32,10 +32,10 @@ import { SPACE } from './theme';
 const INACTIVE_TEXT = '#8C8C8C';
 /** Inactive hover fill, per Requirement 3.2. */
 const INACTIVE_HOVER = '#1E1E1E';
-/** Active background: orange at 12% opacity. */
-const ACTIVE_BG = 'rgba(193, 110, 67, 0.12)';
-/** Active text color (brand orange). */
-const ACTIVE_TEXT = '#d08a5e';
+/** Active background: quiet brand selection highlight. */
+const ACTIVE_BG = SPACE.brandSoft;
+/** Active text uses the shared brand accent. */
+const ACTIVE_TEXT = SPACE.brand;
 
 interface ModeMeta {
   id: WorkspaceMode;

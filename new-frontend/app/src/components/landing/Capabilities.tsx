@@ -1,289 +1,380 @@
-import React, { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { Sliders, LineChart, FileJson, Check, Copy } from "lucide-react";
+import { useState, type FC } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import {
+  BarChart3,
+  Check,
+  ChevronRight,
+  Database,
+  FileOutput,
+  FileSpreadsheet,
+  Folder,
+  History,
+  LayoutDashboard,
+  MessageSquare,
+  MoreHorizontal,
+  Paperclip,
+  Presentation,
+  Send,
+  Table2,
+  Wrench,
+} from "lucide-react";
 
-export const Capabilities: React.FC = () => {
-  // Instrument 1: Prepare - transform parameter sliders
-  const [rowsNormalized, setRowsNormalized] = useState<number>(78);
-  const [joinAlignment, setJoinAlignment] = useState<number>(45);
-  const [noiseFilter, setNoiseFilter] = useState<number>(92);
+type WorkspaceMode = "prepare" | "visualize" | "publish";
 
-  // Instrument 2: Visualize - series click states
-  const [selectedNode, setSelectedNode] = useState<{ id: string; value: string; trend: string } | null>({
-    id: "SERIES-04", value: "1.49K", trend: "+2.81%"
-  });
-  const [ripples, setRipples] = useState<{ id: number; x: number; y: number }[]>([]);
+const modes = [
+  { id: "prepare" as const, label: "Prepare", icon: Table2 },
+  { id: "visualize" as const, label: "Visualize", icon: BarChart3 },
+  { id: "publish" as const, label: "Publish", icon: FileOutput },
+];
 
-  // Instrument 3: Publish - manifest copy status
-  const [copied, setCopied] = useState<boolean>(false);
-
-  // Series click handler for ripple feedback on the chart canvas
-  const handleNodeClick = (e: React.MouseEvent<HTMLElement>, nodeId: string, value: string, trend: string) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    const rippleId = Date.now();
-    setRipples((prev) => [...prev, { id: rippleId, x, y }]);
-    setSelectedNode({ id: nodeId, value, trend });
-
-    // Clear this ripple after its animation completes
-    setTimeout(() => {
-      setRipples((prev) => prev.filter((r) => r.id !== rippleId));
-    }, 1200);
-  };
-
-  // Report manifest emitted by the Publish stage
-  const reportManifest = `{
-  "platform": "EventHorizon",
-  "workspace_mode": "publish",
-  "folder_state": "TRANSFORMED",
-  "prepare": {
-    "rows_normalized": "${rowsNormalized}%",
-    "join_alignment": "${joinAlignment}%",
-    "noise_filtered": "${noiseFilter}%"
+const modeCopy: Record<WorkspaceMode, { title: string; prompt: string; response: string; tool: string; toolInput: string; toolOutput: string }> = {
+  prepare: {
+    title: "Prepare one reliable table",
+    prompt: "Clean the uploaded sales tables, standardize regions, and create one table for analysis.",
+    response: "I inspected the three folder sources, aligned their schemas, removed duplicate order IDs, and validated the resulting row count. The prepared table is ready to save.",
+    tool: "prepare_folder_tables",
+    toolInput: 'folder="Global sales"; sources=3; dedupe_key="order_id"',
+    toolOutput: 'table="sales_clean"; rows=48,219; checks=passed',
   },
-  "artifacts": {
-    "tables": 3,
-    "charts": ["line", "bar", "pie"],
-    "report_formats": ["PPTX", "PDF", "DOCX", "XLSX"]
-  }
-}`;
+  visualize: {
+    title: "Build visuals from the selected table",
+    prompt: "Compare net revenue by region and highlight the strongest quarter.",
+    response: "APAC leads net revenue and shows the strongest quarter-over-quarter gain. I created a regional comparison chart and kept it available in the chat until it is saved to the dashboard.",
+    tool: "create_dashboard_chart",
+    toolInput: 'table="sales_clean"; metric="net_revenue"; dimension="region"',
+    toolOutput: 'chart="Revenue by region"; type="bar"; state="draft"',
+  },
+  publish: {
+    title: "Turn the same evidence into a report",
+    prompt: "Create a concise executive report using the saved regional revenue chart.",
+    response: "The report has an executive summary, regional performance section, key risks, and an appendix with the prepared-table lineage. Four export formats are ready.",
+    tool: "generate_report",
+    toolInput: 'table="sales_clean"; dashboard="Executive dashboard"; audience="board"',
+    toolOutput: 'report="Board review"; sections=4; formats="HTML, PDF, PPTX, DOCX"',
+  },
+};
 
-  const handleCopyReport = () => {
-    navigator.clipboard.writeText(reportManifest);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+const chartData = [
+  { label: "NA", value: 68 },
+  { label: "EMEA", value: 52 },
+  { label: "APAC", value: 86 },
+  { label: "LATAM", value: 39 },
+];
+
+const sourceRows = [
+  { name: "orders_q1.csv", meta: "18.4k rows" },
+  { name: "orders_q2.csv", meta: "17.1k rows" },
+  { name: "orders_q3.csv", meta: "14.2k rows" },
+];
+
+function ToolTrace({ mode }: { mode: WorkspaceMode }) {
+  const content = modeCopy[mode];
 
   return (
-    <section
-      id="section-capabilities"
-      className="relative min-h-screen w-full py-24 px-6 z-10 border-b border-white/[0.02]"
-    >
-      <div className="w-full max-w-7xl mx-auto flex flex-col items-center space-y-20">
+    <details className="group mt-5 overflow-hidden rounded-md border border-white/[0.08] bg-white/[0.02]">
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-3 px-3 text-xs text-zinc-400 transition-colors duration-300 hover:text-zinc-200 [&::-webkit-details-marker]:hidden">
+        <ChevronRight className="h-3.5 w-3.5 shrink-0 transition-transform duration-300 group-open:rotate-90" aria-hidden="true" />
+        <Wrench className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        <span className="truncate font-mono text-[10px]">{content.tool}</span>
+        <span className="ml-auto flex items-center gap-2 font-mono text-[9px] text-zinc-600">
+          <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
+          completed
+        </span>
+      </summary>
+      <div className="grid gap-px border-t border-white/[0.07] bg-white/[0.07] sm:grid-cols-2">
+        <div className="bg-[#090909] p-3">
+          <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-zinc-600">Input arguments</p>
+          <code className="mt-2 block break-words font-mono text-[10px] leading-5 text-zinc-400">{content.toolInput}</code>
+        </div>
+        <div className="bg-[#090909] p-3">
+          <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-zinc-600">Tool response</p>
+          <code className="mt-2 block break-words font-mono text-[10px] leading-5 text-zinc-400">{content.toolOutput}</code>
+        </div>
+      </div>
+    </details>
+  );
+}
 
-        {/* Section Headline */}
-        <div className="text-center max-w-2xl space-y-4">
-          <h2 className="font-display font-semibold text-3xl md:text-5xl text-white tracking-tight uppercase">
-            One Unified Workspace
-            <span className="block text-zinc-500 font-light text-xl md:text-2xl mt-2 lowercase font-sans">
-              prepare · visualize · publish
-            </span>
-          </h2>
+function PrepareResult() {
+  return (
+    <div className="mt-5 overflow-hidden rounded-md border border-white/[0.08]">
+      <div className="flex items-center justify-between border-b border-white/[0.07] bg-white/[0.02] px-3 py-2.5">
+        <div className="flex items-center gap-2">
+          <Table2 className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
+          <span className="font-mono text-[10px] text-zinc-300">sales_clean</span>
+        </div>
+        <span className="flex items-center gap-1.5 text-[10px] text-zinc-500">
+          <Check className="h-3 w-3" aria-hidden="true" />
+          48,219 rows validated
+        </span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[520px] text-left font-mono text-[9px]">
+          <thead className="text-zinc-600">
+            <tr>{["order_id", "region", "quarter", "net_revenue"].map((heading) => <th key={heading} className="border-b border-white/[0.06] px-3 py-2 font-normal">{heading}</th>)}</tr>
+          </thead>
+          <tbody className="text-zinc-400">
+            <tr>{["ORD-10482", "APAC", "Q3", "$128,440"].map((cell) => <td key={cell} className="px-3 py-2">{cell}</td>)}</tr>
+            <tr className="bg-white/[0.015]">{["ORD-10483", "EMEA", "Q3", "$96,210"].map((cell) => <td key={cell} className="px-3 py-2">{cell}</td>)}</tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function VisualizeResult() {
+  return (
+    <div className="mt-5 rounded-md border border-white/[0.08] bg-[#080808] p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium text-zinc-200">Net revenue by region</p>
+          <p className="mt-1 font-mono text-[9px] text-zinc-600">sales_clean / Q1-Q3 FY26</p>
+        </div>
+        <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-md border border-transparent bg-primary px-3 text-[10px] font-medium text-primary-foreground transition-colors duration-300 hover:bg-primary/90">
+          <LayoutDashboard className="h-3.5 w-3.5" aria-hidden="true" />
+          Add to dashboard
+        </button>
+      </div>
+      <div className="mt-6 flex h-44 items-end gap-3 border-b border-l border-white/[0.08] px-4 pt-4 sm:gap-6">
+        {chartData.map((bar) => (
+          <div key={bar.label} className="flex h-full flex-1 flex-col justify-end gap-2">
+            <div className="relative flex-1">
+              <div className={`absolute inset-x-0 bottom-0 transition-[height,background-color] duration-700 ${bar.label === "APAC" ? "bg-primary hover:bg-primary/90" : "bg-zinc-300 hover:bg-white"}`} style={{ height: `${bar.value}%` }} />
+            </div>
+            <span className="pb-2 text-center font-mono text-[9px] text-zinc-600">{bar.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PublishResult() {
+  const sections = ["Executive summary", "Regional performance", "Risks and opportunities", "Data lineage appendix"];
+  return (
+    <div className="mt-5 overflow-hidden rounded-md border border-white/[0.08] bg-[#080808]">
+      <div className="flex items-center justify-between border-b border-white/[0.07] px-4 py-3">
+        <div className="flex items-center gap-2">
+          <FileOutput className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
+          <span className="text-xs font-medium text-zinc-200">Board review</span>
+        </div>
+        <span className="font-mono text-[9px] text-zinc-600">4 sections</span>
+      </div>
+      <div className="divide-y divide-white/[0.06] px-4">
+        {sections.map((section, index) => (
+          <div key={section} className="flex items-center gap-3 py-3 text-xs text-zinc-400">
+            <span className="font-mono text-[9px] text-zinc-700">0{index + 1}</span>
+            {section}
+            <Check className="ml-auto h-3.5 w-3.5 text-zinc-500" aria-label="Complete" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ArtifactRail({ mode }: { mode: WorkspaceMode }) {
+  if (mode === "prepare") {
+    return (
+      <>
+        <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-zinc-600">Sources</p>
+        <div className="mt-3 divide-y divide-white/[0.06] border-y border-white/[0.07]">
+          {sourceRows.map((source) => (
+            <div key={source.name} className="flex items-center gap-2 py-3">
+              <FileSpreadsheet className="h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="truncate font-mono text-[10px] text-zinc-300">{source.name}</p>
+                <p className="mt-0.5 text-[9px] text-zinc-600">{source.meta}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="mt-6 font-mono text-[9px] uppercase tracking-[0.14em] text-zinc-600">Prepared output</p>
+        <div className="mt-3 rounded-md border border-primary/30 bg-primary/[0.06] p-3">
+          <div className="flex items-center gap-2 text-xs text-white"><Table2 className="h-4 w-4 text-primary" />sales_clean</div>
+          <p className="mt-2 text-[10px] leading-4 text-zinc-500">Selected for downstream work</p>
+        </div>
+      </>
+    );
+  }
+
+  if (mode === "visualize") {
+    return (
+      <>
+        <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-zinc-600">Dashboard artifacts</p>
+        <div className="mt-3 divide-y divide-white/[0.06] border-y border-white/[0.07]">
+          {["Revenue by region", "Quarterly trend", "Margin KPI", "Order volume"].map((item, index) => (
+            <div key={item} className="flex items-center gap-2 py-3 text-[11px] text-zinc-400">
+              <BarChart3 className="h-3.5 w-3.5 text-zinc-500" aria-hidden="true" />
+              <span className="flex-1">{item}</span>
+              <span className="font-mono text-[9px] text-zinc-700">0{index + 1}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-6 border-l border-white/20 pl-3">
+          <p className="text-xs font-medium text-zinc-300">APAC leads</p>
+          <p className="mt-1 text-[10px] leading-4 text-zinc-600">Highest net revenue and strongest quarterly gain.</p>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-zinc-600">Report outputs</p>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        {[
+          { label: "HTML", icon: FileOutput },
+          { label: "PDF", icon: FileOutput },
+          { label: "PPTX", icon: Presentation },
+          { label: "DOCX", icon: FileOutput },
+        ].map(({ label, icon: Icon }) => (
+          <button key={label} type="button" className="flex h-16 flex-col items-start justify-between rounded-md border border-white/[0.08] p-3 text-[10px] text-zinc-400 transition-colors duration-300 hover:border-primary/40 hover:bg-primary/[0.06] hover:text-primary">
+            <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="mt-6 border-t border-white/[0.07] pt-4">
+        <p className="text-xs text-zinc-300">Board review</p>
+        <p className="mt-1 font-mono text-[9px] text-zinc-600">Based on sales_clean</p>
+      </div>
+    </>
+  );
+}
+
+export const Capabilities: FC = () => {
+  const [activeMode, setActiveMode] = useState<WorkspaceMode>("prepare");
+  const content = modeCopy[activeMode];
+
+  return (
+    <section id="section-workspace" className="relative w-full bg-[#030303] px-4 py-24 sm:px-6 lg:px-10 lg:py-32">
+      <div className="mx-auto w-full max-w-[1440px]">
+        <div className="grid gap-8 lg:grid-cols-12 lg:items-end">
+          <div className="lg:col-span-7">
+            <p className="font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-500">The working surface</p>
+            <h2 className="mt-4 max-w-4xl font-display text-4xl font-semibold leading-tight text-white sm:text-5xl lg:text-6xl">
+              Chat stays central. The right context changes with the work.
+            </h2>
+          </div>
+          <p className="max-w-xl text-sm leading-6 text-zinc-400 sm:text-base lg:col-span-5">
+            The same conversation shell follows every stage. Tool calls appear only when a task needs them, traces stay inspectable, and temporary artifacts remain in chat until you choose to save them.
+          </p>
         </div>
 
-        {/* Bento Grid layout of the three workspace modes */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full" id="instrument-bento-grid">
-
-          {/* PREPARE - transform controls (5 cols) */}
-          <div className="lg:col-span-5 bg-coal border border-white/[0.05] rounded-2xl p-6 flex flex-col space-y-6 relative noise-bg overflow-hidden" id="instrument-prepare">
-            <div className="flex justify-between items-start border-b border-white/[0.04] pb-4">
-              <div className="space-y-1">
-                <h3 className="font-display font-medium text-lg text-white uppercase tracking-tight">
-                  Agentic Transforms
-                </h3>
-              </div>
-              <Sliders className="w-5 h-5 text-plasma-orange" />
+        <div className="mt-14 overflow-hidden rounded-lg border border-white/[0.1] bg-[#080808] shadow-[0_24px_90px_rgba(0,0,0,0.55)]">
+          <div className="flex min-h-14 flex-wrap items-center gap-3 border-b border-white/[0.08] px-3 py-2 sm:px-4">
+            <div className="flex min-w-0 items-center gap-2 sm:w-48">
+              <Folder className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden="true" />
+              <span className="truncate text-xs font-medium text-zinc-300">Global sales</span>
             </div>
 
-            {/* Transform parameter sliders */}
-            <div className="flex-1 flex flex-col justify-center space-y-6">
-              {[
-                {
-                  label: "ROWS NORMALIZED",
-                  min: 10, max: 100, unit: "%",
-                  value: rowsNormalized,
-                  setter: setRowsNormalized,
-                  color: "accent-plasma-orange"
-                },
-                {
-                  label: "JOIN ALIGNMENT",
-                  min: 0, max: 100, unit: "%",
-                  value: joinAlignment,
-                  setter: setJoinAlignment,
-                  color: "accent-plasma-purple"
-                },
-                {
-                  label: "NOISE FILTER",
-                  min: 50, max: 100, unit: "%",
-                  value: noiseFilter,
-                  setter: setNoiseFilter,
-                  color: "accent-plasma-purple"
-                }
-              ].map((slider, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="flex justify-between items-center text-[10px] font-mono tracking-wider">
-                    <span className="text-zinc-500 uppercase">{slider.label}</span>
-                    <span className="text-white font-medium">
-                      {slider.value}{slider.unit}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={slider.min}
-                    max={slider.max}
-                    value={slider.value}
-                    onChange={(e) => slider.setter(parseInt(e.target.value))}
-                    className={`w-full h-1 bg-white/[0.05] rounded-lg appearance-none cursor-pointer ${slider.color}`}
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="p-3 bg-void/50 border border-white/[0.03] rounded-lg font-mono text-[8.5px] text-zinc-600 flex justify-between">
-              <span>THROUGHPUT: {(rowsNormalized * 4.4).toFixed(0)} rows/s</span>
-              <span>NULLS: {((100 - noiseFilter) * 0.08).toFixed(3)}%</span>
-            </div>
-          </div>
-
-          {/* VISUALIZE - dashboard builder (7 cols) */}
-          <div className="lg:col-span-7 bg-coal border border-white/[0.05] rounded-2xl p-6 flex flex-col space-y-6 relative noise-bg overflow-hidden" id="instrument-visualize">
-            <div className="flex justify-between items-start border-b border-white/[0.04] pb-4">
-              <div className="space-y-1">
-                <h3 className="font-display font-medium text-lg text-white uppercase tracking-tight">
-                  Charts & Dashboards
-                </h3>
-              </div>
-              <LineChart className="w-5 h-5 text-ion-violet" />
-            </div>
-
-            {/* Interactive series canvas */}
-            <div className="flex-1 flex flex-col space-y-4">
-              <span className="block font-mono text-[9px] text-zinc-500 tracking-wider">
-                CHART CANVAS (CLICK A SERIES TO INSPECT)
-              </span>
-
-              <div
-                className="h-[180px] bg-void border border-white/[0.05] rounded-xl relative overflow-hidden flex items-center justify-center cursor-pointer"
-                onClick={(e) => handleNodeClick(e, "SERIES-" + Math.floor(1 + Math.random() * 9).toString().padStart(2, "0"), (Math.random() * 3 + 0.5).toFixed(2) + "K", (Math.random() > 0.5 ? "+" : "-") + (Math.random() * 5).toFixed(2) + "%")}
-              >
-                {/* Background chart grid */}
-                <div className="absolute inset-0 grid-bg opacity-20" />
-                <div className="absolute w-[1px] h-full bg-white/[0.04] left-1/2" />
-                <div className="absolute h-[1px] w-full bg-white/[0.04] top-1/2" />
-
-                {/* Animated scanning light bar */}
-                <div className="absolute top-0 bottom-0 w-20 bg-gradient-to-r from-transparent via-ion-violet/5 to-transparent animate-scanline" />
-
-                {/* Concentric guides */}
-                <div className="absolute w-24 h-24 border border-white/[0.03] rounded-full" />
-                <div className="absolute w-44 h-44 border border-white/[0.015] rounded-full" />
-
-                {/* Data points the user can highlight */}
-                {[
-                  { x: "32%", y: "25%", id: "SERIES-01", value: "0.82K", trend: "+1.09%" },
-                  { x: "72%", y: "65%", id: "SERIES-02", value: "2.14K", trend: "+0.45%" },
-                  { x: "18%", y: "70%", id: "SERIES-04", value: "1.49K", trend: "+2.81%" },
-                  { x: "85%", y: "20%", id: "SERIES-09", value: "3.78K", trend: "-0.12%" },
-                ].map((node) => (
+            <div className="order-3 grid w-full grid-cols-3 rounded-md border border-white/[0.08] bg-black p-1 sm:order-none sm:mx-auto sm:w-auto">
+              {modes.map((mode) => {
+                const Icon = mode.icon;
+                const selected = activeMode === mode.id;
+                return (
                   <button
-                    key={node.id}
-                    onClick={(e) => {
-                      e.stopPropagation(); // prevent parent click
-                      handleNodeClick(e, node.id, node.value, node.trend);
-                    }}
-                    className={`absolute w-3 h-3 rounded-full flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
-                      selectedNode?.id === node.id
-                        ? "bg-white border-2 border-ion-violet scale-125 z-20 shadow-lg shadow-ion-violet/50"
-                        : "bg-ion-violet/20 hover:bg-ion-violet/50 border border-ion-violet/40"
-                    }`}
-                    style={{ left: node.x, top: node.y }}
-                  />
-                ))}
-
-                {/* Ripple feedback on click */}
-                {ripples.map((rip) => (
-                  <span
-                    key={rip.id}
-                    className="absolute border border-ion-violet/50 rounded-full animate-ping pointer-events-none"
-                    style={{
-                      left: rip.x,
-                      top: rip.y,
-                      width: "60px",
-                      height: "60px",
-                      transform: "translate(-50%, -50%)",
-                      animationDuration: "1.2s",
-                    }}
-                  />
-                ))}
-              </div>
-
-              {/* Selected series stats */}
-              <AnimatePresence mode="wait">
-                {selectedNode && (
-                  <motion.div
-                    key={selectedNode.id}
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -5 }}
-                    className="p-3 bg-void/50 border border-white/[0.04] rounded-lg grid grid-cols-3 gap-2 text-[10px] font-mono leading-normal"
+                    key={mode.id}
+                    type="button"
+                    onClick={() => setActiveMode(mode.id)}
+                    className={`inline-flex h-8 items-center justify-center gap-2 rounded px-3 text-[11px] font-medium transition-colors duration-300 sm:min-w-28 ${selected ? "bg-primary text-primary-foreground" : "text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-200"}`}
+                    aria-pressed={selected}
                   >
-                    <div>
-                      <span className="block text-zinc-600">SERIES</span>
-                      <span className="text-white font-medium">{selectedNode.id}</span>
-                    </div>
-                    <div>
-                      <span className="block text-zinc-600">VALUE</span>
-                      <span className="text-ion-violet font-medium">{selectedNode.value}</span>
-                    </div>
-                    <div>
-                      <span className="block text-zinc-600">TREND</span>
-                      <span className="text-white font-medium">{selectedNode.trend}</span>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                    <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                    {mode.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="ml-auto flex items-center gap-2 text-[10px] text-zinc-500 sm:w-48 sm:justify-end">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />
+              sales_clean selected
             </div>
           </div>
 
-          {/* PUBLISH - report exporter (full width) */}
-          <div className="lg:col-span-12 bg-coal border border-white/[0.05] rounded-2xl p-6 flex flex-col space-y-6 relative noise-bg overflow-hidden" id="instrument-publish">
-            <div className="flex justify-between items-start border-b border-white/[0.04] pb-4">
-              <div className="space-y-1">
-                <h3 className="font-display font-medium text-lg text-white uppercase tracking-tight">
-                  Reports & Export
-                </h3>
+          <div className="grid lg:grid-cols-[190px_minmax(0,1fr)_280px] xl:grid-cols-[210px_minmax(0,1fr)_310px]">
+            <aside className="hidden border-r border-white/[0.08] bg-[#060606] p-4 lg:block" aria-label="Project navigation">
+              <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-zinc-700">Project</p>
+              <div className="mt-3 space-y-1">
+                {["Overview", "Global sales", "Customer health", "Forecasting"].map((item, index) => (
+                  <div key={item} className={`flex h-9 items-center gap-2 rounded px-2 text-[11px] ${index === 1 ? "bg-primary/10 text-primary" : "text-zinc-600"}`}>
+                    <Folder className="h-3.5 w-3.5" aria-hidden="true" />
+                    {item}
+                  </div>
+                ))}
               </div>
-              <FileJson className="w-5 h-5 text-plasma-purple" />
-            </div>
+              <div className="mt-7 border-t border-white/[0.07] pt-4">
+                <p className="font-mono text-[9px] uppercase tracking-[0.14em] text-zinc-700">History</p>
+                <div className="mt-3 flex items-center gap-2 text-[11px] text-zinc-600"><MessageSquare className="h-3.5 w-3.5" />Regional analysis</div>
+              </div>
+            </aside>
 
-            {/* Report manifest viewer with clipboard option */}
-            <div className="flex-1 flex flex-col space-y-3">
-              <div className="flex justify-between items-center text-[10px] font-mono">
-                <span className="text-zinc-500">EXPORT MANIFEST - PPTX · PDF · DOCX · XLSX</span>
-
-                <button
-                  onClick={handleCopyReport}
-                  className="flex items-center gap-1.5 text-zinc-400 hover:text-white transition-colors duration-200 cursor-pointer"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="text-emerald-400 font-semibold">COPIED</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>COPY MANIFEST</span>
-                    </>
-                  )}
+            <div className="flex min-h-[650px] min-w-0 flex-col bg-black/35">
+              <div className="flex h-14 items-center justify-between border-b border-white/[0.07] px-4 sm:px-5">
+                <div>
+                  <p className="text-xs font-medium text-zinc-200">{content.title}</p>
+                  <p className="mt-0.5 font-mono text-[9px] text-zinc-700">Agent session / Global sales</p>
+                </div>
+                <button type="button" className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-600 transition-colors duration-300 hover:bg-white/[0.04] hover:text-zinc-300" aria-label="Open session history" title="Session history">
+                  <History className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="flex-1 bg-void border border-white/[0.04] rounded-xl p-4 font-mono text-[9.5px] text-zinc-400 overflow-x-auto relative">
-                <pre className="leading-relaxed select-all">
-                  <code>{reportManifest}</code>
-                </pre>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeMode}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+                  className="flex-1 overflow-hidden px-4 py-6 sm:px-6"
+                >
+                  <div className="ml-auto max-w-[82%] rounded-md border border-white/[0.09] bg-white/[0.055] px-4 py-3 text-sm leading-6 text-zinc-300 sm:max-w-[70%]">
+                    {content.prompt}
+                  </div>
 
-                {/* Visual glow on the right representing a compiled report */}
-                <div className="absolute right-0 bottom-0 top-0 w-32 bg-gradient-to-l from-plasma-purple/5 to-transparent pointer-events-none" />
+                  <div className="mt-7 max-w-3xl">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full border border-primary/40 bg-primary/10 text-[9px] font-semibold text-primary">EH</span>
+                      <span className="text-xs font-medium text-zinc-300">EventHorizon</span>
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-zinc-400">{content.response}</p>
+                    <ToolTrace mode={activeMode} />
+                    {activeMode === "prepare" && <PrepareResult />}
+                    {activeMode === "visualize" && <VisualizeResult />}
+                    {activeMode === "publish" && <PublishResult />}
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+
+              <div className="border-t border-white/[0.07] p-3 sm:p-4">
+                <div className="flex min-h-12 items-center gap-2 rounded-md border border-white/[0.1] bg-[#090909] px-2 transition-colors duration-300 focus-within:border-primary/50">
+                  <button type="button" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded text-zinc-600 transition-colors duration-300 hover:bg-white/[0.04] hover:text-zinc-300" aria-label="Attach context" title="Attach context">
+                    <Paperclip className="h-4 w-4" />
+                  </button>
+                  <span className="min-w-0 flex-1 truncate text-xs text-zinc-600">Ask about the selected table...</span>
+                  <button type="button" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded bg-primary text-primary-foreground transition-colors duration-300 hover:bg-primary/90" aria-label="Send message" title="Send message">
+                    <Send className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
+
+            <aside className="border-t border-white/[0.08] bg-[#060606] p-4 sm:p-5 lg:border-l lg:border-t-0" aria-label="Mode artifacts">
+              <div className="flex items-center justify-between border-b border-white/[0.07] pb-4">
+                <div className="flex items-center gap-2">
+                  <Database className="h-3.5 w-3.5 text-zinc-500" aria-hidden="true" />
+                  <span className="text-xs font-medium text-zinc-300">{activeMode === "prepare" ? "Data" : activeMode === "visualize" ? "Dashboard" : "Report"}</span>
+                </div>
+                <MoreHorizontal className="h-4 w-4 text-zinc-700" aria-hidden="true" />
+              </div>
+              <div className="pt-5"><ArtifactRail mode={activeMode} /></div>
+            </aside>
           </div>
-
         </div>
-
       </div>
     </section>
   );

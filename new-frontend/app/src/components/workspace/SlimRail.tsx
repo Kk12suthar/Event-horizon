@@ -77,9 +77,9 @@ function RailButton({
         title={label}
         className="relative flex h-9 w-9 items-center justify-center rounded-lg outline-none transition-colors focus-visible:ring-1"
         style={{
-          color: emphasis ? SPACE.bg : active ? SPACE.text : SPACE.muted,
+          color: emphasis ? SPACE.onBrand : active ? SPACE.text : SPACE.muted,
           backgroundColor: emphasis
-            ? SPACE.text
+            ? SPACE.brand
             : active
               ? SPACE.hover
               : 'transparent',
@@ -99,7 +99,7 @@ function RailButton({
         {active && (
           <span
             className="absolute -left-[14px] top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-r"
-            style={{ backgroundColor: SPACE.text }}
+            style={{ backgroundColor: SPACE.brand }}
           />
         )}
         <Icon className="h-[18px] w-[18px]" strokeWidth={2} />

@@ -8,9 +8,14 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
+import sys
 from env import load_environment
 
 load_environment()
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 from router import (
     projects,
@@ -29,7 +34,6 @@ from router import (
 )
 
 import os
-import sys
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")
@@ -87,8 +91,8 @@ app = FastAPI(
 setup_error_handlers(app)
 
 @app.on_event("startup")
-def _create_audit_table():
-    """Ensure admin_audit_logs table exists on startup."""
+def _create_runtime_tables():
+    """Ensure audit and session-workspace persistence tables exist."""
     try:
         from database import get_db
         from utils.audit_logger import _ensure_audit_table
@@ -97,6 +101,13 @@ def _create_audit_table():
         print("✅ Audit logs table ready")
     except Exception as e:
         print(f"⚠️ Could not ensure audit table (non-fatal): {e}")
+    try:
+        from shared.workspace_store import ensure_workspace_schema
+
+        ensure_workspace_schema()
+        print("Session workspace tables ready")
+    except Exception as e:
+        print(f"Could not ensure session workspace tables (non-fatal): {e}")
 
 app.include_router(projects.router)
 app.include_router(users.router)

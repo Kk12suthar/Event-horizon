@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from html import escape
 from pathlib import Path
 
 
@@ -11,6 +12,8 @@ def build_report_file(root: Path, folder_id: str, report_id: str, file_format: s
 
     if fmt == "pdf":
         path.write_bytes(_minimal_pdf(title, body))
+    elif fmt == "html":
+        _write_html(path, title, body)
     elif fmt == "docx":
         _write_docx(path, title, body)
     elif fmt == "pptx":
@@ -18,10 +21,35 @@ def build_report_file(root: Path, folder_id: str, report_id: str, file_format: s
     elif fmt == "xlsx":
         _write_xlsx(path, title, body)
     else:
-        path = folder_dir / f"{_safe_name(report_id)}.txt"
-        path.write_text(f"{title}\n\n{body}", encoding="utf-8")
+        raise ValueError(f"Unsupported report format: {file_format}")
     return path
 
+
+def _write_html(path: Path, title: str, body: str) -> None:
+    paragraphs = "\n".join(
+        f"<p>{escape(paragraph.strip())}</p>"
+        for paragraph in body.split("\n\n")
+        if paragraph.strip()
+    )
+    document = f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{escape(title)}</title>
+  <style>
+    body {{ max-width: 820px; margin: 48px auto; padding: 0 24px; color: #171717; background: #fff; font: 16px/1.6 Arial, sans-serif; }}
+    h1 {{ font-size: 30px; line-height: 1.2; margin-bottom: 32px; }}
+    p {{ margin: 0 0 18px; white-space: pre-wrap; }}
+  </style>
+</head>
+<body>
+  <h1>{escape(title)}</h1>
+  {paragraphs}
+</body>
+</html>
+"""
+    path.write_text(document, encoding="utf-8")
 
 def _write_docx(path: Path, title: str, body: str) -> None:
     try:

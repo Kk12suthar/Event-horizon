@@ -9,12 +9,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+import main as agent_main
+
 from llm.client import complete_text, resolve_model_name
-from main import AgentStreamRequest, ReportRequest, _model_config_status, _thread_config
+from main import AgentStreamRequest, ReportRequest, _model_config_status, _resolve_artifact_root, _thread_config
 from tools.postgres import _validate_select
 
 
 class AgentHardeningTests(unittest.TestCase):
+    def test_relative_artifact_root_resolves_from_repository_root(self) -> None:
+        resolved = _resolve_artifact_root("agent-server/artifacts")
+        self.assertEqual(resolved, (ROOT.parent / "agent-server" / "artifacts").resolve())
+
     def test_thread_config_isolates_user_folder_surface_and_sanitizes(self) -> None:
         first = _thread_config(
             surface="dashboard",
@@ -141,7 +147,9 @@ class AgentHardeningTests(unittest.TestCase):
 
     def test_model_config_status_preserves_openrouter_provider_for_anthropic_slug(self) -> None:
         saved = {key: os.environ.get(key) for key in ("AGENT_MODEL", "MODEL_NAME", "AGENT_PROVIDER", "MODEL_PROVIDER", "OPENROUTER_API_KEY")}
+        original_loader = agent_main.load_workspace_model_config
         try:
+            agent_main.load_workspace_model_config = lambda: None
             os.environ["AGENT_PROVIDER"] = "openrouter"
             os.environ["AGENT_MODEL"] = "openrouter/anthropic/claude-sonnet-4.5"
             os.environ["OPENROUTER_API_KEY"] = "test-key"
@@ -152,6 +160,7 @@ class AgentHardeningTests(unittest.TestCase):
             self.assertEqual(status["key_env"], "OPENROUTER_API_KEY")
             self.assertTrue(status["key_configured"])
         finally:
+            agent_main.load_workspace_model_config = original_loader
             for key, value in saved.items():
                 if value is None:
                     os.environ.pop(key, None)

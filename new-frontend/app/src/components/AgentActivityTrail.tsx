@@ -38,10 +38,10 @@ export function groupChatMessages(messages: ChatMessage[]): RenderItem[] {
 }
 
 function stepColor(type: MessageType): string {
-  if (type === 'tool_response') return '#22C55E';
+  if (type === 'tool_response') return '#D4D4D8';
   if (type === 'tool_call') return '#D4D4D8';
-  if (type === 'thinking') return '#A78BFA';
-  if (type === 'transition') return '#60A5FA';
+  if (type === 'thinking') return '#A1A1AA';
+  if (type === 'transition') return '#71717A';
   return '#6C6C6C';
 }
 
@@ -59,6 +59,10 @@ function formatToolPayload(value: unknown): string {
 function stepSummary(step: ChatMessage): string {
   if (step.type === 'thinking') return step.metadata?.streaming ? 'Thinking…' : 'Thought through the problem';
   if (step.type === 'transition') return step.content || 'Agent hand-off';
+  if (step.type === 'tool_call' || step.type === 'tool_response') {
+    const name = step.metadata?.toolName ? prettyAgent(step.metadata.toolName) : 'Tool';
+    return `${name} ${step.metadata?.toolStatus === 'complete' ? 'completed' : 'running'}`;
+  }
   return step.content || 'Working…';
 }
 
@@ -79,7 +83,7 @@ function ThinkingRow({ step }: { step: ChatMessage }) {
         ) : (
           <Brain className="h-3 w-3 shrink-0" style={{ color: stepColor('thinking') }} />
         )}
-        <span className="text-xs leading-5 text-[#C9B8F5]">{streaming ? 'Thinking…' : 'Thinking'}</span>
+        <span className="text-xs leading-5 text-[#D4D4D8]">{streaming ? 'Thinking…' : 'Thinking'}</span>
         {text && (
           <ChevronDown
             className={`ml-auto h-3 w-3 shrink-0 text-[#71717A] transition-transform ${open ? 'rotate-180' : ''}`}
@@ -87,7 +91,7 @@ function ThinkingRow({ step }: { step: ChatMessage }) {
         )}
       </button>
       {open && text && (
-        <pre className="mt-1 ml-5 max-h-56 overflow-auto whitespace-pre-wrap break-words border-l border-[#3A3350] pl-2 text-[11px] leading-4 text-[#B9AEd0]">
+        <pre className="mt-1 ml-5 max-h-56 overflow-auto whitespace-pre-wrap break-words border-l border-[#262626] pl-2 text-[11px] leading-4 text-[#A1A1AA]">
           {text}
         </pre>
       )}
@@ -102,7 +106,7 @@ function TransitionRow({ step }: { step: ChatMessage }) {
   return (
     <div className="flex items-center gap-2 py-1">
       <ArrowRight className="h-3 w-3 shrink-0" style={{ color: stepColor('transition') }} />
-      <span className="text-xs leading-5 text-[#93B7F0]">
+      <span className="text-xs leading-5 text-[#A1A1AA]">
         {from ? `${prettyAgent(from)} → ${prettyAgent(String(to))}` : prettyAgent(String(to))}
       </span>
     </div>
@@ -116,42 +120,59 @@ function prettyAgent(name: string): string {
     .trim();
 }
 
+function shortTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function ToolPayload({ label, value }: { label: string; value: string }) {
+  if (!value) return null;
+  return (
+    <details className="ml-3 mt-1 rounded-md border border-[#262626] bg-[#000000] px-2 py-1">
+      <summary className="cursor-pointer select-none text-[11px] leading-5 text-[#A1A1AA]">
+        {label}
+      </summary>
+      <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words pt-1 text-[11px] leading-4 text-[#E4E4E7]">
+        {value}
+      </pre>
+    </details>
+  );
+}
+
 function StepRow({ step }: { step: ChatMessage }) {
   if (step.type === 'thinking') return <ThinkingRow step={step} />;
   if (step.type === 'transition') return <TransitionRow step={step} />;
 
-  const payload = step.type === 'tool_call'
-    ? formatToolPayload(step.metadata?.toolArgs)
-    : step.type === 'tool_response'
-      ? formatToolPayload(step.metadata?.toolResponse)
-      : '';
+  const isTool = step.type === 'tool_call' || step.type === 'tool_response';
+  const inputPayload = isTool ? formatToolPayload(step.metadata?.toolArgs) : '';
+  const outputPayload = step.type === 'tool_response' ? formatToolPayload(step.metadata?.toolResponse) : '';
+  const toolLabel = step.metadata?.toolName ? prettyAgent(step.metadata.toolName) : 'Tool';
+  const label = isTool
+    ? `${toolLabel} ${step.metadata?.toolStatus === 'complete' ? 'completed' : 'running'}`
+    : step.content;
+  const duration = step.metadata?.durationMs;
 
   return (
     <div className="py-1">
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         <span
           className="h-1.5 w-1.5 shrink-0 rounded-full"
           style={{ backgroundColor: stepColor(step.type) }}
         />
-        <span className="text-xs leading-5 text-[#D4D4D8]">{step.content}</span>
+        <span className="min-w-0 flex-1 break-words text-xs leading-5 text-[#D4D4D8]">{label}</span>
+        {typeof duration === 'number' && (
+          <span className="shrink-0 text-[10px] text-[#71717A]">{Math.round(duration)} ms</span>
+        )}
         {step.timestamp && (
-          <span className="ml-auto shrink-0 text-[10px] text-[#71717A]">{step.timestamp}</span>
+          <span className="hidden shrink-0 text-[10px] text-[#71717A] sm:inline">{shortTime(step.timestamp)}</span>
         )}
       </div>
-      {payload && (
-        <details className="ml-3 mt-1 rounded-md border border-[#262626] bg-[#000000] px-2 py-1">
-          <summary className="cursor-pointer select-none text-[11px] leading-5 text-[#A1A1AA]">
-            {step.type === 'tool_call' ? 'View input arguments' : 'View tool response'}
-          </summary>
-          <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words pt-1 text-[11px] leading-4 text-[#E4E4E7]">
-            {payload}
-          </pre>
-        </details>
-      )}
+      <ToolPayload label="View input arguments" value={inputPayload} />
+      <ToolPayload label="View tool response" value={outputPayload} />
     </div>
   );
 }
-
 interface AgentActivityTrailProps {
   steps: ChatMessage[];
   /** True while this trail is still receiving steps (last group, generating). */
@@ -190,7 +211,7 @@ export function AgentActivityTrail({ steps, running = false }: AgentActivityTrai
           {running ? (
             <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-[#E4E4E7]" />
           ) : (
-            <Check className="h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
+            <Check className="h-3.5 w-3.5 shrink-0 text-[#D4D4D8]" />
           )}
           <span className="shrink-0 text-xs font-medium text-[#E6E6E6]">
             {running ? 'Agent working' : 'Agent steps'}

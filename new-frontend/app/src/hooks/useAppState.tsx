@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type {
   ChartWidget,
@@ -17,12 +17,16 @@ import {
   deleteFolderRecord,
   deleteProjectRecord,
   fetchAllFolderTables,
+  deleteSessionArtifact,
   fetchFolderById,
   fetchProjectsForUser,
   fetchSessionByFolderAndUser,
+  fetchSessionWorkspace,
   fetchTablePreview,
   normalizeFolderStatus,
   normalizeProjectStatus,
+  saveSessionArtifact,
+  selectSessionTransform,
   updateFolderRecord,
   updateProjectRecord,
   unwrapData,
@@ -41,6 +45,8 @@ interface AppStateContextValue {
   sessionList: Session[];
   tables: DataTable[];
   charts: ChartWidget[];
+  selectedTableId: string | null;
+  selectedTable: DataTable | null;
   reports: GeneratedReport[];
   isLoading: boolean;
   errorMessage: string | null;
@@ -53,6 +59,8 @@ interface AppStateContextValue {
   refreshProjects: () => Promise<void>;
   ensureSession: () => Promise<Session | null>;
   loadTablesForFolder: (folder: Folder) => Promise<DataTable[]>;
+  refreshWorkspace: () => Promise<void>;
+  selectPreparedTable: (tableId: string) => Promise<void>;
   loadTablePreview: (tableId: string, page?: number, limit?: number) => Promise<DataTable | null>;
   toggleSidebar: () => void;
   createProject: (name: string, description: string, status: Project['status']) => Promise<Project | null>;
@@ -63,8 +71,8 @@ interface AppStateContextValue {
   deleteFolder: (id: string) => Promise<void>;
   addFiles: (newFiles: UploadedFile[]) => void;
   removeFile: (id: string) => void;
-  addChart: (chart: ChartWidget) => void;
-  removeChart: (id: string) => void;
+  saveChart: (chart: ChartWidget) => Promise<ChartWidget>;
+  removeChart: (id: string) => Promise<void>;
   addReport: (report: GeneratedReport) => void;
   getProjectFolders: (projectId: string) => Folder[];
 }
@@ -180,6 +188,95 @@ const normalizeRows = (rows: Array<Record<string, string | number>> = []) =>
     ),
   );
 
+const preparedColumns = (value: unknown): string[] =>
+  (Array.isArray(value) ? value : [])
+    .map((column) => (typeof column === 'string' ? column : String(toRecord(column).name || '')))
+    .filter(Boolean);
+
+const mapChartArtifact = (value: unknown): ChartWidget | null => {
+  const record = toRecord(value);
+  const type = String(record.type || 'bar') as ChartWidget['type'];
+  if (!['line', 'bar', 'area', 'pie', 'radial', 'kpi'].includes(type)) return null;
+  const rawData = Array.isArray(record.data) ? record.data : [];
+  const data = rawData.map((point) => {
+    const row = toRecord(point);
+    return {
+      label: String(row.label || ''),
+      value: Number(row.value || 0),
+      ...(row.category !== undefined ? { category: String(row.category) } : {}),
+    };
+  });
+  if (!record.id || data.length === 0) return null;
+  const config = toRecord(record.config);
+  const position = toRecord(record.position);
+  return {
+    id: String(record.id),
+    artifact_type: 'chart',
+    name: String(record.name || record.title || 'Untitled chart'),
+    title: String(record.title || record.name || 'Untitled chart'),
+    type,
+    data,
+    config: {
+      primaryColor: String(config.primaryColor || '#F4F4F5'),
+      showGrid: config.showGrid !== false,
+      showLegend: config.showLegend === true,
+      showTooltip: config.showTooltip !== false,
+      ...(config.lineType === 'straight' ? { lineType: 'straight' as const } : {}),
+      ...(typeof config.showDots === 'boolean' ? { showDots: config.showDots } : {}),
+      ...(typeof config.innerRadius === 'number' ? { innerRadius: config.innerRadius } : {}),
+    },
+    position: {
+      x: Number(position.x || 0),
+      y: Number(position.y || 0),
+      w: Number(position.w || (type === 'kpi' ? 4 : 12)),
+      h: Number(position.h || (type === 'kpi' ? 3 : 6)),
+    },
+    sourceTableId: String(record.sourceTableId || record.source_table_id || ''),
+    source_table_id: String(record.source_table_id || record.sourceTableId || ''),
+    xField: String(record.xField || ''),
+    yFields: Array.isArray(record.yFields) ? record.yFields.map(String) : [],
+    transformRevision: Number(record.transformRevision || record.transform_revision || 0),
+    transform_revision: Number(record.transform_revision || record.transformRevision || 0),
+    status: String(record.status || 'ready') === 'draft' ? 'draft' : 'ready',
+    stale: record.stale === true,
+    createdAt: String(record.createdAt || record.created_at || ''),
+    savedAt: record.savedAt ? String(record.savedAt) : undefined,
+  };
+};
+
+const mapReportArtifact = (value: unknown): GeneratedReport | null => {
+  const record = toRecord(value);
+  if (!record.id) return null;
+  const format = String(record.format || 'PDF').toUpperCase();
+  if (!['PDF', 'HTML', 'PPTX', 'DOCX'].includes(format)) return null;
+  const rawUrls = toRecord(record.downloadUrls || record.download_urls);
+  return {
+    id: String(record.id),
+    name: String(record.name || 'EventHorizon report'),
+    format: format as GeneratedReport['format'],
+    status: String(record.status || 'ready') === 'error' ? 'error' : 'ready',
+    createdAt: String(record.createdAt || record.created_at || ''),
+    downloadUrl: record.downloadUrl ? String(record.downloadUrl) : undefined,
+    downloadUrls: Object.fromEntries(Object.entries(rawUrls).map(([key, url]) => [key.toUpperCase(), String(url)])),
+    sourceTableId: String(record.sourceTableId || record.source_table_id || ''),
+    transformRevision: Number(record.transformRevision || record.transform_revision || 0),
+    body: record.body ? String(record.body) : undefined,
+    sections: Array.isArray(record.sections)
+      ? record.sections.map((value) => {
+          const section = toRecord(value);
+          return {
+            id: String(section.id || ''),
+            title: String(section.title || 'Section'),
+            content: String(section.content || ''),
+            chart_ids: Array.isArray(section.chart_ids) ? section.chart_ids.map(String) : [],
+            status: String(section.status || 'ready'),
+            included: section.included !== false,
+          };
+        })
+      : undefined,
+    stale: record.stale === true,
+  };
+};
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated } = useAuth();
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -193,9 +290,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [sessionList, setSessionList] = useState<Session[]>([]);
   const [tables, setTables] = useState<DataTable[]>([]);
   const [charts, setCharts] = useState<ChartWidget[]>([]);
+  const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
   const [reports, setReports] = useState<GeneratedReport[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const activeFolderIdRef = useRef<string | null>(null);
 
   const refreshProjects = useCallback(async () => {
     if (!user?.id) {
@@ -235,6 +334,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isAuthenticated) {
+      activeFolderIdRef.current = null;
       setProjectList([]);
       setFolderList([]);
       setSelectedProject(null);
@@ -242,6 +342,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setActiveSession(null);
       setFileList([]);
       setTables([]);
+      setCharts([]);
+      setReports([]);
+      setSelectedTableId(null);
       return;
     }
     void refreshProjects();
@@ -255,33 +358,40 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     });
 
     let mergedTables = { ...uploadedTables };
+    let tableDetails: Awaited<ReturnType<typeof fetchAllFolderTables>>['table_details'] = [];
     try {
       const dbTables = await fetchAllFolderTables(folder.id);
-      if (dbTables.tables) {
-        mergedTables = { ...mergedTables, ...dbTables.tables };
-      }
-      if (dbTables.table_types) {
-        Object.assign(tableTypes, dbTables.table_types);
-      }
+      if (dbTables.tables) mergedTables = { ...mergedTables, ...dbTables.tables };
+      if (dbTables.table_types) Object.assign(tableTypes, dbTables.table_types);
+      tableDetails = dbTables.table_details || [];
     } catch {
       // Folder entities are still enough to render uploaded tables.
     }
 
-    const nextTables = Object.entries(mergedTables).map(([id, name]) => ({
-      id,
-      name,
-      source: tableTypes[id] || 'uploaded',
-      columns: [],
-      rows: [],
-      rowCount: 0,
-      hasMore: true,
-      page: 0,
-    })) satisfies DataTable[];
+    const detailsById = new Map((tableDetails || []).map((detail) => [detail.id, detail]));
+    const nextTables = Object.entries(mergedTables).map(([id, name]) => {
+      const detail = detailsById.get(id);
+      return {
+        id,
+        name,
+        source: tableTypes[id] || 'uploaded',
+        columns: preparedColumns(detail?.columns),
+        rows: [],
+        rowCount: Number(detail?.row_count || 0),
+        hasMore: true,
+        page: 0,
+        revision: detail?.revision,
+        status: detail?.active === false ? 'inactive' : 'ready',
+        recipe: detail?.recipe || [],
+        sourceTables: detail?.source_tables || [],
+        createdAt: detail?.created_at,
+      } satisfies DataTable;
+    });
 
+    if (activeFolderIdRef.current !== folder.id) return [];
     setTables(nextTables);
     return nextTables;
   }, []);
-
   const loadSessionForFolder = useCallback(
     async (folder: Folder) => {
       if (!user?.id) return null;
@@ -293,6 +403,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           return null;
         }
         const mappedSession = mapSession(record, folder);
+        if (activeFolderIdRef.current !== folder.id) return null;
         setActiveSession(mappedSession);
         setSessionList((current) => {
           const withoutCurrent = current.filter((session) => session.id !== mappedSession.id);
@@ -308,21 +419,65 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     [user?.id],
   );
 
+  const hydrateWorkspace = useCallback(async (session: Session, folder: Folder) => {
+    if (session.folderId !== folder.id || activeFolderIdRef.current !== folder.id) return;
+    try {
+      const snapshot = await fetchSessionWorkspace(session.id, folder.id);
+      if (activeFolderIdRef.current !== folder.id) return;
+      const selectedId = snapshot.workspace?.selected_table_id || snapshot.selected_table?.id || null;
+      const nextCharts = (snapshot.charts || [])
+        .map(mapChartArtifact)
+        .filter((chart): chart is ChartWidget => chart !== null);
+      const nextReports = (snapshot.reports || [])
+        .map(mapReportArtifact)
+        .filter((report): report is GeneratedReport => report !== null);
+      setSelectedTableId(selectedId ? String(selectedId) : null);
+      setCharts(nextCharts);
+      setReports(nextReports);
+      setActiveSession((current) =>
+        current?.id === session.id
+          ? {
+              ...current,
+              selectedTableId: selectedId ? String(selectedId) : undefined,
+              selectedTableName: snapshot.workspace?.selected_table_name || undefined,
+              transformRevision: Number(snapshot.workspace?.transform_revision || 0),
+            }
+          : current,
+      );
+    } catch (error) {
+      setCharts([]);
+      setReports([]);
+      setSelectedTableId(null);
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to load workspace artifacts');
+    }
+  }, []);
+
+  const refreshWorkspace = useCallback(async () => {
+    if (!activeSession || !selectedFolder || activeSession.folderId !== selectedFolder.id) return;
+    await hydrateWorkspace(activeSession, selectedFolder);
+  }, [activeSession, hydrateWorkspace, selectedFolder]);
   const applyFolderContext = useCallback(
     async (folder: Folder) => {
       const project = projectList.find((item) => item.id === folder.projectId) || selectedProject;
+      activeFolderIdRef.current = folder.id;
       setSelectedFolder(folder);
+      setActiveSession(null);
+      setSelectedTableId(null);
+      setCharts([]);
+      setReports([]);
       if (project) setSelectedProject(project);
       sessionStorage.setItem('folderId', folder.id);
       if (folder.projectId) sessionStorage.setItem('projectId', folder.projectId);
       sessionStorage.setItem('folderData', JSON.stringify(folder.raw || folder));
       setFileList(filesFromEntities(folder));
-      await loadSessionForFolder(folder);
-      await loadTablesForFolder(folder);
+      const [session] = await Promise.all([
+        loadSessionForFolder(folder),
+        loadTablesForFolder(folder),
+      ]);
+      if (session) await hydrateWorkspace(session, folder);
     },
-    [loadSessionForFolder, loadTablesForFolder, projectList, selectedProject],
+    [hydrateWorkspace, loadSessionForFolder, loadTablesForFolder, projectList, selectedProject],
   );
-
   const loadFolderContext = useCallback(
     async (folderId: string) => {
       const localFolder = folderList.find((folder) => folder.id === folderId);
@@ -347,11 +502,15 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   );
 
   const selectProject = useCallback((project: Project | null) => {
+    activeFolderIdRef.current = null;
     setSelectedProject(project);
     setSelectedFolder(null);
     setActiveSession(null);
     setFileList([]);
     setTables([]);
+    setCharts([]);
+    setReports([]);
+    setSelectedTableId(null);
     if (project) sessionStorage.setItem('projectId', project.id);
     else sessionStorage.removeItem('projectId');
   }, []);
@@ -359,10 +518,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const selectFolder = useCallback(
     (folder: Folder | null) => {
       if (!folder) {
+        activeFolderIdRef.current = null;
         setSelectedFolder(null);
         setActiveSession(null);
         setFileList([]);
         setTables([]);
+        setCharts([]);
+        setReports([]);
+        setSelectedTableId(null);
         sessionStorage.removeItem('folderId');
         return;
       }
@@ -426,9 +589,18 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setActiveSession(mapped);
     setSessionList((current) => [...current.filter((session) => session.id !== mapped.id), mapped]);
     sessionStorage.setItem('sessionId', mapped.id);
+    await hydrateWorkspace(mapped, selectedFolder);
     return mapped;
-  }, [activeSession, selectedFolder, user?.id]);
+  }, [activeSession, hydrateWorkspace, selectedFolder, user?.id]);
 
+  const selectPreparedTable = useCallback(async (tableId: string) => {
+    if (!selectedFolder) throw new Error('Select a folder first.');
+    const session = await ensureSession();
+    if (!session) throw new Error('An active session is required.');
+    await selectSessionTransform(session.id, selectedFolder.id, tableId);
+    setSelectedTableId(tableId);
+    await hydrateWorkspace(session, selectedFolder);
+  }, [ensureSession, hydrateWorkspace, selectedFolder]);
   const toggleSidebar = useCallback(() => {
     setIsSidebarOpen((value) => !value);
   }, []);
@@ -508,21 +680,38 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setFileList((current) => current.filter((file) => file.id !== id));
   }, []);
 
-  const addChart = useCallback((chart: ChartWidget) => {
-    setCharts((current) => [...current, chart]);
-  }, []);
+  const saveChart = useCallback(async (chart: ChartWidget) => {
+    if (!selectedFolder) throw new Error('Select a folder first.');
+    const session = await ensureSession();
+    if (!session) throw new Error('An active session is required.');
+    const persisted = await saveSessionArtifact(session.id, selectedFolder.id, {
+      ...chart,
+      artifact_type: 'chart',
+      status: 'ready',
+    });
+    const saved = mapChartArtifact(persisted);
+    if (!saved) throw new Error('The saved chart response was invalid.');
+    setCharts((current) => [...current.filter((item) => item.id !== saved.id), saved]);
+    return saved;
+  }, [ensureSession, selectedFolder]);
 
-  const removeChart = useCallback((id: string) => {
+  const removeChart = useCallback(async (id: string) => {
+    if (!activeSession || !selectedFolder) return;
+    await deleteSessionArtifact(activeSession.id, selectedFolder.id, id);
     setCharts((current) => current.filter((chart) => chart.id !== id));
-  }, []);
-
+  }, [activeSession, selectedFolder]);
   const addReport = useCallback((report: GeneratedReport) => {
-    setReports((current) => [...current, report]);
+    setReports((current) => [...current.filter((item) => item.id !== report.id), report]);
   }, []);
 
   const getProjectFolders = useCallback(
     (projectId: string) => folderList.filter((folder) => folder.projectId === projectId),
     [folderList],
+  );
+
+  const selectedTable = useMemo(
+    () => tables.find((table) => table.id === selectedTableId && table.source === 'agent_created') || null,
+    [selectedTableId, tables],
   );
 
   const value = useMemo<AppStateContextValue>(
@@ -538,6 +727,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       sessionList,
       tables,
       charts,
+      selectedTableId,
+      selectedTable,
       reports,
       isLoading,
       errorMessage,
@@ -550,6 +741,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       refreshProjects,
       ensureSession,
       loadTablesForFolder,
+      refreshWorkspace,
+      selectPreparedTable,
       loadTablePreview,
       toggleSidebar,
       createProject,
@@ -560,14 +753,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       deleteFolder,
       addFiles,
       removeFile,
-      addChart,
+      saveChart,
       removeChart,
       addReport,
       getProjectFolders,
     }),
     [
       activeSession,
-      addChart,
       addFiles,
       addReport,
       charts,
@@ -588,13 +780,18 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       loadTablesForFolder,
       projectList,
       refreshProjects,
+      refreshWorkspace,
       removeChart,
       removeFile,
       reports,
+      saveChart,
       selectFolder,
+      selectPreparedTable,
       selectProject,
       selectedFolder,
       selectedProject,
+      selectedTable,
+      selectedTableId,
       sessionList,
       tables,
       toggleSidebar,
@@ -602,7 +799,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       updateProject,
     ],
   );
-
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }
 

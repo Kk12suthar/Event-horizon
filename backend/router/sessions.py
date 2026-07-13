@@ -4,6 +4,8 @@ Provides CRUD endpoints and queries as described in endpoints.json.
 
 from datetime import datetime, timezone
 import json
+from pathlib import Path
+import sys
 import uuid
 from typing import Any, Dict, List, Optional
 
@@ -18,14 +20,35 @@ from schemas import (
     SessionEdit,
     SessionDelete,
     SessionOut,
+    SessionWorkspaceSelection,
+    SessionArtifactUpsert,
+    SessionArtifactDelete,
 )
 
 from security.policy import (
+
     current_user_id,
+
     require_folder_access,
+
     require_same_user_or_admin,
+
     require_session_owner_or_folder_access,
+
     user_from_request,
+
+)
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from shared.workspace_store import (
+    WorkspaceStoreError,
+    delete_artifact,
+    ensure_workspace_schema,
+    get_workspace_snapshot,
+    select_transform_table,
+    upsert_artifact,
 )
 
 router = APIRouter(prefix="/api/v1/session", tags=["sessions"])
@@ -141,6 +164,17 @@ def create_session(
             """
         )
         db.execute(insert_q, payload_dict)
+        ensure_workspace_schema()
+        db.execute(
+            text(
+                """
+                INSERT INTO instance01.mtd_session_workspace(session_id, folder_id)
+                VALUES (CAST(:id AS uuid), CAST(:folder_id AS uuid))
+                ON CONFLICT (session_id) DO NOTHING
+                """
+            ),
+            {"id": payload.id, "folder_id": payload.folder_id},
+        )
         db.commit()
         return MessageResponse(message="Session created successfully", data=None)
     except Exception as exc:
@@ -375,3 +409,81 @@ def get_session_by_folder_and_user(
     except Exception as exc:
         print(f"Error in get_session_by_folder_and_user: {exc}")
         raise
+
+
+@router.get("/getWorkspace/{session_id}", response_model=MessageResponse)
+def get_session_workspace(
+    session_id: uuid.UUID,
+    folder_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    user = user_from_request(request)
+    require_session_owner_or_folder_access(session_id, user, db, min_level="VIEWER")
+    try:
+        snapshot = get_workspace_snapshot(str(session_id), str(folder_id), current_user_id(user))
+        return MessageResponse(message="Success", data=snapshot)
+    except WorkspaceStoreError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
+@router.put("/selectTransform", response_model=MessageResponse)
+def select_session_transform(
+    payload: SessionWorkspaceSelection,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    user = user_from_request(request)
+    require_session_owner_or_folder_access(payload.session_id, user, db, min_level="ANALYST")
+    try:
+        selected = select_transform_table(
+            payload.session_id,
+            payload.folder_id,
+            current_user_id(user),
+            payload.table_id,
+        )
+        return MessageResponse(message="Prepared table selected", data=selected)
+    except WorkspaceStoreError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
+@router.put("/saveArtifact", response_model=MessageResponse)
+def save_session_artifact(
+    payload: SessionArtifactUpsert,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    user = user_from_request(request)
+    require_session_owner_or_folder_access(payload.session_id, user, db, min_level="ANALYST")
+    try:
+        saved = upsert_artifact(
+            payload.session_id,
+            payload.folder_id,
+            current_user_id(user),
+            payload.artifact,
+        )
+        return MessageResponse(message="Artifact saved", data=saved)
+    except WorkspaceStoreError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+
+@router.delete("/deleteArtifact", response_model=MessageResponse)
+def delete_session_artifact(
+    payload: SessionArtifactDelete,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    user = user_from_request(request)
+    require_session_owner_or_folder_access(payload.session_id, user, db, min_level="ANALYST")
+    try:
+        deleted = delete_artifact(
+            payload.session_id,
+            payload.folder_id,
+            current_user_id(user),
+            payload.artifact_id,
+        )
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Artifact not found")
+        return MessageResponse(message="Artifact deleted", data={"id": payload.artifact_id})
+    except WorkspaceStoreError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc

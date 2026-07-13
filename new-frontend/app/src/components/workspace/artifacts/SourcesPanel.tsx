@@ -133,7 +133,7 @@ function Dropzone({
       }}
       className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed text-center outline-none transition-colors focus-visible:ring-1"
       style={{
-        borderColor: dragging ? SPACE.text : SPACE.border,
+        borderColor: dragging ? SPACE.brand : SPACE.border,
         backgroundColor: dragging ? SPACE.hover : SPACE.panelAlt,
         color: SPACE.muted,
         padding: prominent ? '2.25rem 1rem' : '1.25rem 1rem',
@@ -275,7 +275,7 @@ function ProcessingStatus({
             className="h-full rounded-full transition-all duration-200"
             style={{
               width: `${Math.max(0, Math.min(100, progress))}%`,
-              backgroundColor: SPACE.text,
+              backgroundColor: SPACE.brand,
             }}
           />
         </div>

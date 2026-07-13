@@ -1,9 +1,10 @@
 /**
  * Shared workspace theme tokens - single source of truth.
  *
- * Monochrome "Deep Space Terminal" palette. White / light-gray is the only
- * accent; there are no purple or blue accents, no gradients, orbs, hero
- * blocks, or marketing copy. Every new workspace component must import these
+ * "Deep Space Terminal" palette. Near-black surfaces stay monochrome while
+ * muted burnt orange marks primary actions and selected workflow state. There
+ * are no purple or blue accents, gradients, or decorative color fields. Every
+ * new workspace component must import these
  * tokens instead of hardcoding hex values, so the redesign changes layout/IA
  * without a visual rebrand.
  *
@@ -24,8 +25,13 @@ export const SPACE = {
   text: '#F4F4F5', // primary text / the only "accent"
   muted: '#8A8A8A', // secondary text
   subtle: '#5C5C5C', // tertiary text / captions
-  success: '#22C55E', // completed/ready only (small dot)
-  danger: '#F97066', // destructive/failed only
+  brand: '#C16E43', // shared primary action background (matches --primary)
+  brandHover: '#D07A4E', // restrained hover lift for primary actions
+  brandSoft: 'rgba(193, 110, 67, 0.14)', // selected mode / quiet emphasis
+  brandBorder: 'rgba(193, 110, 67, 0.38)',
+  onBrand: '#0A0A0A', // high-contrast content on the brand fill
+  success: '#D4D4D8', // completed/ready only (small dot)
+  danger: '#A1A1AA', // destructive/failed only
 } as const;
 
 export type SpaceToken = keyof typeof SPACE;

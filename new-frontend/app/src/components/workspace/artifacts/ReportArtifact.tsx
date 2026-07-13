@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import {
   FileText,
   ListTree,
@@ -33,7 +34,7 @@ import { SPACE } from '../theme';
  *    pending render a skeleton/spinner instead of content (9.6).
  *  - When ready, the Preview view shows the composed report with visible
  *    download buttons (9.7).
- *  - A failed section shows a coral status WITHOUT failing the whole page -
+ *  - A failed section shows a neutral status WITHOUT failing the whole page -
  *    every other section continues to render normally (9.8).
  *
  * Uses only SPACE tokens + lucide-react, matching TableArtifact styling.
@@ -50,7 +51,7 @@ export type ReportSectionStatus =
   | 'drafted' // content produced, not reviewed
   | 'reviewed' // content reviewed/approved
   | 'needs-update' // stale / flagged for regeneration
-  | 'failed'; // coral failure - does not fail the page
+  | 'failed'; // neutral failure - does not fail the page
 
 /** Kind of evidence backing a section (Requirement 9.2). */
 export type ReportEvidenceKind = 'table' | 'chart' | 'source';
@@ -133,7 +134,7 @@ export const REPORT_SECTIONS: ReadonlyArray<{ id: string; title: string }> = [
   { id: 'appendix', title: 'Appendix' },
 ];
 
-const ALL_FORMATS: ReportFormat[] = ['PDF', 'PPTX', 'DOCX', 'XLSX'];
+const ALL_FORMATS: ReportFormat[] = ['PDF', 'HTML', 'PPTX', 'DOCX'];
 
 /** Build the default empty outline from the canonical section list. */
 function defaultSections(): ReportSectionVM[] {
@@ -160,7 +161,7 @@ function statusMeta(status: ReportSectionStatus): {
     case 'reviewed':
       return { Icon: CheckCircle2, color: SPACE.success, label: 'Reviewed' };
     case 'needs-update':
-      return { Icon: AlertCircle, color: '#EAB308', label: 'Needs update' };
+      return { Icon: AlertCircle, color: SPACE.muted, label: 'Needs update' };
     case 'failed':
       return { Icon: AlertCircle, color: SPACE.danger, label: 'Failed' };
     case 'empty':
@@ -325,7 +326,7 @@ function OutlineRow({
       className="rounded-lg px-3 py-2.5"
       style={{
         backgroundColor: SPACE.panel,
-        // Coral left border for a failed section without failing the page (9.8).
+        // Neutral left border for a failed section without failing the page (9.8).
         border: `1px solid ${failed ? SPACE.danger : SPACE.border}`,
         opacity: dimmed ? 0.55 : 1,
       }}
@@ -459,8 +460,8 @@ function ViewToggle({
             onClick={() => onSwitchView?.(key)}
             className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium outline-none transition-colors focus-visible:ring-1"
             style={{
-              backgroundColor: active ? 'rgba(228, 228, 231, 0.1)' : 'transparent',
-              color: active ? SPACE.text : SPACE.muted,
+              backgroundColor: active ? SPACE.brandSoft : 'transparent',
+              color: active ? SPACE.brand : SPACE.muted,
               cursor: 'pointer',
             }}
           >
@@ -527,7 +528,7 @@ export function ReportArtifact({
   artifact,
   state,
   sections,
-  view = 'outline',
+  view,
   report,
   downloadFormats = ALL_FORMATS,
   onRegenerateSection,
@@ -536,10 +537,44 @@ export function ReportArtifact({
   onSwitchView,
   onDownload,
 }: ReportArtifactProps) {
-  const resolvedReport = report ?? artifact?.reports?.[0] ?? null;
-  const resolvedSections = sections && sections.length > 0 ? sections : defaultSections();
+  const resolvedReport = report ?? artifact?.reports?.[artifact.reports.length - 1] ?? null;
+  const persistedSections = useMemo<ReportSectionVM[]>(() => {
+    if (resolvedReport?.sections?.length) {
+      return resolvedReport.sections.map((section) => ({
+        id: section.id,
+        title: section.title,
+        status: section.status === 'failed' ? 'failed' : 'reviewed',
+        excerpt: section.content,
+        evidence: (section.chart_ids || []).map((chartId) => ({
+          kind: 'chart' as const,
+          label: `Chart ${chartId.slice(0, 8)}`,
+        })),
+        included: section.included !== false,
+      }));
+    }
+    if (resolvedReport?.body) {
+      return [{
+        id: `${resolvedReport.id}-body`,
+        title: 'Generated report',
+        status: 'reviewed',
+        excerpt: resolvedReport.body,
+        included: true,
+      }];
+    }
+    return [];
+  }, [resolvedReport]);
+  const resolvedSections = sections && sections.length > 0
+    ? sections
+    : persistedSections.length > 0
+      ? persistedSections
+      : defaultSections();
   const resolvedState = state ?? deriveState(resolvedSections, resolvedReport);
-
+  const [internalView, setInternalView] = useState<ReportView | null>(null);
+  const activeView = view ?? internalView ?? (resolvedReport?.status === 'ready' ? 'preview' : 'outline');
+  const switchView = (next: ReportView) => {
+    if (onSwitchView) onSwitchView(next);
+    else setInternalView(next);
+  };
   // --- Disabled: no transformed table yet (Requirement 9.4) ---
   if (resolvedState === 'disabled') {
     return (
@@ -562,9 +597,9 @@ export function ReportArtifact({
     );
   }
 
-  const isPreview = view === 'preview';
+  const isPreview = activeView === 'preview';
   const generating = resolvedState === 'generating';
-  const ready = resolvedState === 'ready' && resolvedReport?.status === 'ready';
+  const ready = resolvedState === 'ready' && resolvedReport?.status === 'ready' && !resolvedReport.stale;
   const includedSections = resolvedSections.filter((s) => s.included);
 
   return (
@@ -585,7 +620,7 @@ export function ReportArtifact({
           </span>
         )}
         <div className="ml-auto">
-          <ViewToggle view={view} onSwitchView={onSwitchView} />
+          <ViewToggle view={activeView} onSwitchView={switchView} />
         </div>
       </div>
 
@@ -598,7 +633,9 @@ export function ReportArtifact({
               <p className="px-4 pb-2 text-[11px]" style={{ color: SPACE.subtle }}>
                 {generating
                   ? 'Report is still generating - downloads unlock when it is ready.'
-                  : 'Compose sections in Outline, then generate the report to enable downloads.'}
+                  : resolvedReport?.stale
+                    ? 'This report is out of date because the selected prepared table changed. Generate a new report.'
+                    : 'Compose sections in Outline, then generate the report to enable downloads.'}
               </p>
             )}
             <div className="space-y-4 pt-1">

@@ -11,12 +11,19 @@ from fastapi.responses import JSONResponse
 import plotly.graph_objs as go
 import json
 import psycopg2
+import sys
 
 from security.policy import require_folder_access, require_table_access, user_from_request
 
 import os
 from env import load_environment
 from pathlib import Path
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from shared.workspace_store import list_transform_tables, resolve_transform_table_record
 
 load_environment()
 
@@ -52,6 +59,11 @@ def resolve_physical_table_name(table_name: str, db_config: dict, folder_id: str
     (uploaded tables use their physical name directly).
     """
     try:
+        if folder_id:
+            transform = resolve_transform_table_record(folder_id, table_name)
+            if transform:
+                return str(transform['physical_name'])
+
         conn = psycopg2.connect(**db_config)
         cursor = conn.cursor()
         
@@ -169,63 +181,20 @@ def getTableData(table_request: TableRequest, request: Request, metadata_db: Ses
 
 @router.get("/getAllFolderTables/{folder_id}")
 def getAllFolderTables(folder_id: str, request: Request, metadata_db: Session = Depends(get_metadata_db)):
-    """
-    Get agent-created tables belonging to a folder from the table_registry.
-    
-    Uploaded tables are already loaded from folder entities - this endpoint
-    only supplements them with agent-created tables that aren't in entities.
-    
-    Returns:
-        tables: { friendly_name: friendly_name } - matches tablesDict format
-        table_types: { friendly_name: "agent_created" } - for UI tooltip display
-    """
+    """Return active agent-created tables with stable public IDs."""
     if not folder_id:
-        return JSONResponse({"tables": {}, "table_types": {}})
+        return JSONResponse({"tables": {}, "table_types": {}, "table_details": []})
     require_folder_access(folder_id, user_from_request(request), metadata_db, min_level="VIEWER")
 
-    db_config = {
-        "user": os.getenv("POSTGRES_USER"),
-        "password": os.getenv("POSTGRES_PASSWORD"),
-        "host": os.getenv("POSTGRES_HOST"),
-        "dbname": os.getenv("POSTGRES_UPLOAD_DBNAME"),
-        "port": os.getenv("POSTGRES_PORT"),
-    }
-
-    tables = {}
-    table_types = {}
-    folder_id_no_dash = folder_id.replace("-", "").lower()
-
     try:
-        conn = psycopg2.connect(**db_config)
-        cursor = conn.cursor()
+        details = list_transform_tables(folder_id)
+    except Exception as exc:
+        logger.error(f"Error loading agent tables for folder {folder_id[:8]}: {exc}")
+        return JSONResponse({"tables": {}, "table_types": {}, "table_details": []})
 
-        # Get agent-created tables from uploads.table_registry
-        cursor.execute("""
-            SELECT table_name, friendly_name
-            FROM uploads.table_registry
-            WHERE LOWER(REPLACE(folder_id, '-', '')) = %s
-              AND table_type = 'agent_created'
-            ORDER BY created_at ASC
-        """, (folder_id_no_dash,))
-
-        for row in cursor.fetchall():
-            physical_name = row[0]
-            friendly_name = row[1] or physical_name
-            # tablesDict format: key = friendly_name, value = friendly_name (display label)
-            tables[friendly_name] = friendly_name
-            table_types[friendly_name] = "agent_created"
-
-        cursor.close()
-        conn.close()
-
-        logger.info(f"📋 Agent tables for folder {folder_id_no_dash[:8]}: {list(tables.keys())}")
-
-    except Exception as e:
-        logger.error(f"❌ Error in getAllFolderTables: {e}")
-        return JSONResponse({"tables": {}, "table_types": {}})
-
-    return JSONResponse({"tables": tables, "table_types": table_types})
-
+    tables = {table["id"]: table["name"] for table in details}
+    table_types = {table["id"]: "agent_created" for table in details}
+    return JSONResponse({"tables": tables, "table_types": table_types, "table_details": details})
 
 @router.post("/getChartData")
 def getChartData(plot_request: PlotRequest, request: Request, db: Session = Depends(get_charts_db), metadata_db: Session = Depends(get_metadata_db)):
