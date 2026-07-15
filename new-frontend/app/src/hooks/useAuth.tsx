@@ -4,6 +4,7 @@ import type { User, UserRole } from '@/types';
 import {
   clearStoredAuth,
   forgotPasswordRequest,
+  googleSignInRequest,
   isDevGmailSignInEnabled,
   logoutRequest,
   normalizeRole,
@@ -17,6 +18,7 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
+  loginWithGoogle: (credential: string, nonce: string) => Promise<boolean>;
   signup: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<boolean>;
@@ -137,6 +139,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const loginWithGoogle = useCallback(async (credential: string, nonce: string) => {
+    setLoading(true);
+    try {
+      const session = await googleSignInRequest(credential, nonce);
+      const mappedUser = toUser(session.backendUser, session.firebaseUid, session.firebaseEmail);
+      sessionStorage.setItem('access_token', session.accessToken);
+      sessionStorage.setItem('refresh_token', session.refreshToken);
+      sessionStorage.setItem('token_expiry', String(Date.now() + session.expiresIn * 1000));
+      sessionStorage.setItem('inactivity_timeout_ms', String(session.expiresIn * 1000));
+      sessionStorage.setItem('last_activity', String(Date.now()));
+      sessionStorage.setItem('user', JSON.stringify(mappedUser));
+      sessionStorage.setItem('userId', mappedUser.id);
+      if (mappedUser.uid) sessionStorage.setItem('firebaseUid', mappedUser.uid);
+      setUser(mappedUser);
+      return true;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const signup = useCallback(async (name: string, email: string, password: string) => {
     setLoading(true);
     try {
@@ -177,6 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       loading,
       login,
+      loginWithGoogle,
       signup,
       logout,
       forgotPassword,
@@ -188,7 +211,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isViewer: user?.role === 'Viewer',
       isAuthenticated: !!user && !!sessionStorage.getItem('access_token'),
     };
-  }, [forgotPassword, hasRole, loading, login, logout, resetPassword, signup, user, verifyEmail]);
+  }, [forgotPassword, hasRole, loading, login, loginWithGoogle, logout, resetPassword, signup, user, verifyEmail]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

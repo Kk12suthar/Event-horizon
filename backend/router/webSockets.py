@@ -23,6 +23,13 @@ from .tables import (
 )
 from schemas import TableCreate, TableEdit, TableDelete, TableOut, MessageResponse
 from datetime import datetime
+from utils.upload_socket_security import (
+    authenticate_upload_start,
+    authorize_upload_metadata,
+    decode_upload_chunk,
+    mark_upload_files,
+    verify_upload_complete,
+)
 
 UPLOAD_DIR = Path(__file__).parent.parent / "uploads"
 load_environment()
@@ -83,6 +90,20 @@ def process_file_sync(file_uploader, file_info):
             pass
             
     return result
+
+
+def cleanup_failed_uploads(uploaded_files):
+    failed_ids = [item.get("file_id") for item in uploaded_files.values() if item.get("file_id")]
+    db_failed = SessionLocal()
+    try:
+        mark_upload_files(db_failed, failed_ids, "FAILED")
+    finally:
+        db_failed.close()
+    for item in uploaded_files.values():
+        try:
+            Path(item["file_path"]).unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 def create_session_id():
@@ -175,6 +196,7 @@ async def websocket_file_upload(websocket: WebSocket):
     processed_files = 0
     created_tables = []  # Track successfully created table names
     user_id = None  # Will be set from frontend via start_upload message
+    authenticated_user = None
     files_dict = {}
     # Create DatabaseConfig object for FileUploader
     db_config = DatabaseConfig()
@@ -191,18 +213,14 @@ async def websocket_file_upload(websocket: WebSocket):
 
             if message["type"] == "start_upload":
                 # Reset state for new upload batch
-                total_files = message["totalFiles"]
+                authenticated_user, total_files = authenticate_upload_start(message)
+                user_id = str(authenticated_user["sub"])
                 processed_files = 0
                 created_tables = []
+                uploaded_files.clear()
+                files_to_process = []
+                files_dict = {}
                 session_id = message.get("sessionId")
-                user_id = message.get("userId")  # Get userId from frontend
-
-                if not user_id:
-                    await websocket.send_json({
-                        "type": "error",
-                        "message": "userId is required in start_upload message"
-                    })
-                    continue
 
                 # Persist the incoming sessionId (if any) for use later in the flow
                 global_session_id = session_id = message.get("sessionId")
@@ -219,8 +237,17 @@ async def websocket_file_upload(websocket: WebSocket):
                 )
 
             elif message["type"] == "metadata":
+                if authenticated_user is None:
+                    raise HTTPException(status_code=401, detail="Authenticate the upload before sending metadata.")
                 file_index = message["fileIndex"]
-                folder_id = message.get("folderId")
+                if file_index in uploaded_files or not 0 <= int(file_index) < total_files:
+                    raise HTTPException(status_code=400, detail="Invalid or duplicate file index.")
+                db_metadata = SessionLocal()
+                try:
+                    authorized_file = authorize_upload_metadata(db_metadata, message, authenticated_user, UPLOAD_DIR)
+                finally:
+                    db_metadata.close()
+                folder_id = authorized_file["folder_id"]
                 
                 # Mark lock as acquired on first metadata
                 # Frontend has already acquired the upload lock before sending files
@@ -230,18 +257,8 @@ async def websocket_file_upload(websocket: WebSocket):
                     print(f"🔒 Upload lock assumed acquired by frontend for {folder_id}")
                 
                 # Store file metadata
-                uploaded_files[file_index] = {
-                    "file_path": os.path.join(
-                        UPLOAD_DIR,
-                        message["projectId"],
-                        folder_id,
-                        message["fileName"],
-                    ),
-                    "file_id": message["fileId"],
-                    "table_id": str(uuid.uuid4()).replace("-", ""),
-                    "table_name": os.path.splitext(message["fileName"])[0],
-                }
-                files_dict[message["fileId"]] = message["fileName"]
+                uploaded_files[file_index] = authorized_file
+                files_dict[authorized_file["file_id"]] = authorized_file["file_name"]
                 os.makedirs(
                     os.path.dirname(uploaded_files[file_index]["file_path"]),
                     exist_ok=True,
@@ -249,31 +266,34 @@ async def websocket_file_upload(websocket: WebSocket):
 
             elif message["type"] == "data":
                 file_index = message["fileIndex"]
+                if file_index not in uploaded_files:
+                    raise HTTPException(status_code=400, detail="File metadata must be accepted before data chunks.")
                 # Determine if this is the first chunk of data for this file
                 # If it's the first chunk, use 'wb' to create/overwrite the file
                 # If it's a subsequent chunk, use 'ab' to append to the existing file
                 file_mode = "wb" if message.get("chunkIndex", 0) == 0 else "ab"
 
                 with open(uploaded_files[file_index]["file_path"], file_mode) as f:
-                    # Check if data is base64 encoded
-                    if message.get("encoding") == "base64":
-                        import base64
-
-                        # Decode base64 data before writing to file
-                        decoded_data = base64.b64decode(message["data"])
-                        f.write(decoded_data)
-                    else:
-                        # Fallback to previous method for backward compatibility
-                        f.write(message["data"].encode("latin1"))
+                    decoded_data = decode_upload_chunk(uploaded_files[file_index], message)
+                    f.write(decoded_data)
 
             elif message["type"] == "file_complete":
                 file_index = message["fileIndex"]
+                if file_index not in uploaded_files:
+                    raise HTTPException(status_code=400, detail="Unknown file index.")
+                verify_upload_complete(uploaded_files[file_index])
+                if uploaded_files[file_index] in files_to_process:
+                    raise HTTPException(status_code=400, detail="File is already complete.")
                 files_to_process.append(uploaded_files[file_index])
                 await websocket.send_json(
                     {"type": "file_processed", "fileIndex": file_index}
                 )
 
             elif message["type"] == "process_files":
+                if authenticated_user is None or len(files_to_process) != total_files:
+                    raise HTTPException(status_code=400, detail="Every reserved file must finish streaming before processing.")
+                if len({item["folder_id"] for item in files_to_process}) != 1:
+                    raise HTTPException(status_code=400, detail="One upload batch cannot span multiple folders.")
                 total_to_process = len(files_to_process)
                 for index, file_info in enumerate(files_to_process):
                     try:
@@ -306,6 +326,7 @@ async def websocket_file_upload(websocket: WebSocket):
                             )
                     except Exception as e:
                         print(f"Error processing {file_info['table_name']}: {str(e)}")
+                        raise
 
                 # Send message to /run endpoint with created table names
                 if created_tables:
@@ -350,7 +371,7 @@ async def websocket_file_upload(websocket: WebSocket):
                         # ---------------------------------------------------------------------
                         # Merge new tables/files into existing session if a sessionId is supplied
                         # ---------------------------------------------------------------------
-                        if session_id:
+                        if message.get("sessionId"):
                             try:
                                 # Lazy import to avoid circular dependencies
                                 from .sessions import get_session, edit_session
@@ -360,7 +381,7 @@ async def websocket_file_upload(websocket: WebSocket):
                                 try:
                                     # 1. Fetch existing session data from PostgreSQL
                                     current_resp = get_session(
-                                        message["sessionId"], db=db_merge
+                                        session_id, db=db_merge
                                     )
                                     existing_entities = {}
                                     if current_resp and getattr(
@@ -407,7 +428,7 @@ async def websocket_file_upload(websocket: WebSocket):
                                         payload=session_edit_payload, db=db_merge
                                     )
                                     print(
-                                        f"Session {message['sessionId']} entities updated in PostgreSQL with new tables/files."
+                                        f"Session {session_id} entities updated in PostgreSQL with new tables/files."
                                     )
                                 finally:
                                     db_merge.close()
@@ -421,6 +442,12 @@ async def websocket_file_upload(websocket: WebSocket):
                             print("No new tables created, skipping run endpoint")
                             continue
                         
+                        db_status = SessionLocal()
+                        try:
+                            mark_upload_files(db_status, [item["file_id"] for item in created_tables], "PROCESSED")
+                        finally:
+                            db_status.close()
+
                         # Send session ID to frontend after successful session creation and run endpoint call
                         await websocket.send_json(
                             {
@@ -439,7 +466,7 @@ async def websocket_file_upload(websocket: WebSocket):
 
                     except Exception as e:
                         print(f"Error in session/run workflow: {str(e)}")
-                        # Continue with the rest of the websocket flow even if this fails
+                        raise
 
                 await websocket.send_json(
                     {
@@ -461,10 +488,16 @@ async def websocket_file_upload(websocket: WebSocket):
                 created_tables = []
 
     except WebSocketDisconnect:
+        cleanup_failed_uploads(uploaded_files)
         print("Client disconnected")
     except Exception as e:
-        print(f"Error: {str(e)}")
-        await websocket.send_json({"type": "error", "message": str(e)})
+        cleanup_failed_uploads(uploaded_files)
+        message = e.detail if isinstance(e, HTTPException) else str(e)
+        print(f"Error: {message}")
+        try:
+            await websocket.send_json({"type": "error", "message": message})
+        except Exception:
+            pass
     finally:
         # NOTE: Do NOT release the folder lock on WebSocket disconnect.
         # The Upload page component owns the lock lifecycle.  If the user

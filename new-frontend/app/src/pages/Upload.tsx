@@ -7,7 +7,7 @@ import { OfflineState } from '@/components/OfflineState';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useAppState } from '@/hooks/useAppState';
 import { useAuth } from '@/hooks/useAuth';
-import { createFileRecord, createId, getUploadWebSocketUrl, updateFileStatus } from '@/lib/api';
+import { createFileRecord, createId, getUploadAccessToken, getUploadWebSocketUrl, updateFileStatus } from '@/lib/api';
 import type { UploadedFile } from '@/types';
 
 interface UploadSocketResult {
@@ -155,6 +155,7 @@ export function Upload() {
             type: 'start_upload',
             totalFiles: selectedFiles.length,
             userId: user.id,
+            accessToken: getUploadAccessToken(),
             sessionId,
           }));
 
@@ -207,6 +208,7 @@ export function Upload() {
           originalName: file.name,
           uploadedBy: user.id,
           parentFolderId: selectedFolder.id,
+          sizeBytes: file.size,
           status: 'UPLOADED',
         });
       }

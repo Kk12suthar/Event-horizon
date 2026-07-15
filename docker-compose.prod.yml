@@ -57,6 +57,15 @@ services:
       ENABLE_DEV_GMAIL_SIGNIN: "false"
       AUTH_DISABLED: "false"
       PORTAL_AUTH_ENFORCED: "true"
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      UPLOAD_STORAGE_PATH: /app/backend/uploads
+      UPLOAD_PLANNED_USERS: ${UPLOAD_PLANNED_USERS:-50}
+      UPLOAD_MAX_FILES_PER_USER: ${UPLOAD_MAX_FILES_PER_USER:-3}
+      UPLOAD_FILE_SIZE_CAP_BYTES: ${UPLOAD_FILE_SIZE_CAP_BYTES:-62914560}
+      UPLOAD_USER_QUOTA_CAP_BYTES: ${UPLOAD_USER_QUOTA_CAP_BYTES:-188743680}
+      UPLOAD_STORAGE_EXPANSION_FACTOR: ${UPLOAD_STORAGE_EXPANSION_FACTOR:-5}
+      UPLOAD_STORAGE_RESERVE_PERCENT: ${UPLOAD_STORAGE_RESERVE_PERCENT:-25}
+      UPLOAD_MIN_FREE_BYTES: ${UPLOAD_MIN_FREE_BYTES:-16106127360}
     volumes:
       - ./data/uploads:/app/backend/uploads
       - ./data/thumbnails:/app/backend/thumbnails
@@ -86,6 +95,8 @@ services:
       POSTGRES_PORT: 5432
       AGENT_ARTIFACT_ROOT: /app/agent-server/artifacts
       AGENT_EXPOSE_ERRORS: "false"
+      MODEL_CONFIG_MODE: user
+      MAX_PREPARED_TABLES_PER_USER: ${MAX_PREPARED_TABLES_PER_USER:-1}
     volumes:
       - ./data/artifacts:/app/agent-server/artifacts
     depends_on:

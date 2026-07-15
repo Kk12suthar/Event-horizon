@@ -95,7 +95,8 @@ class StreamingAgentTests(unittest.TestCase):
             message = builder.build_final_response({"available_tables": [{"name": "orders"}], "folder_id": "f1"})
         finally:
             builder.load_effective_model_config = original
-        self.assertIn("No AI model is configured", message)
+        self.assertIn("Model access is not configured", message)
+        self.assertIn("Model Access", message)
 
 
     def test_report_loop_prefetches_required_evidence_before_model_answer(self) -> None:

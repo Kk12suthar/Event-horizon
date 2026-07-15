@@ -23,8 +23,8 @@ from llm.client import (
     complete_text,
     merge_usage,
 )
-from runtime.model_config import load_effective_model_config
-from runtime.model_store import load_workspace_model_config
+from runtime.user_model_config import load_effective_model_config
+from runtime.user_model_store import load_user_model_config
 from tools.postgres import execute_select
 
 logger = logging.getLogger("eventhorizon.agent_server.graph")
@@ -160,7 +160,7 @@ async def data_agent(state: AgentState) -> dict[str, Any]:
     if not folder_id:
         return {}
 
-    model_config = load_effective_model_config(load_workspace_model_config)
+    model_config = _model_config_for_state(state)
     if model_config is None or not getattr(model_config, "model", None):
         return {}
 
@@ -226,7 +226,7 @@ You are the Publish agent. Use only the selected prepared table '{selected}' and
 """
     return common + f"""
 You are the Prepare agent. Tables are discovered only when the user's data request requires them; current known tables: {table_names}.
-Use data_list_tables and data_describe_tables to inspect uploaded sources. Use prepare_detect_quality_issues for profiling. When the user explicitly asks to clean, join, combine, or create a final table, formulate one safe folder-scoped SELECT, validate it with prepare_plan_transform, then call prepare_build_transform. The build tool creates a new prepared table and never changes uploaded sources. Do not stop after merely listing tables when the request asks for a transformation.
+Use data_list_tables and data_describe_tables to inspect uploaded sources. Use prepare_detect_quality_issues for profiling. Each account may create only one prepared table. When the user explicitly asks to clean, join, combine, or create a final table and no prepared table exists yet, formulate one safe folder-scoped SELECT, validate it with prepare_plan_transform, then call prepare_build_transform. If the build tool reports prepared_table_limit_reached, do not retry it; direct the user to the existing table for Visualize and Publish. The build tool never changes uploaded sources. Do not stop after merely listing tables when the request asks for a transformation.
 """
 
 async def _run_tool_loop(state: AgentState, provider: InProcessToolProvider, model_config, folder_id: str) -> dict[str, Any]:
@@ -522,7 +522,7 @@ def _emit_answer_chunks(text: str, size: int = 48) -> None:
 
 async def _stream_final_answer(state: AgentState) -> tuple[str, dict[str, Any]]:
     """Compose and stream the grounded final answer, returning (text, usage)."""
-    model_config = load_effective_model_config(load_workspace_model_config)
+    model_config = _model_config_for_state(state)
     if model_config is None or not getattr(model_config, "model", None):
         return "", {}
 
@@ -591,11 +591,10 @@ def build_final_response(state: AgentState) -> str:
     tables = state.get("available_tables") or []
     tool_results = state.get("tool_results") or []
 
-    model_config = load_effective_model_config(load_workspace_model_config)
+    model_config = _model_config_for_state(state)
     if model_config is None or not getattr(model_config, "model", None):
         return (
-            "No AI model is configured for the agent yet. An admin needs to set a "
-            "model and API key in Settings (agent model config), then try again."
+            "Model access is not configured. Set your provider, model name, and API key in Model Access, then try again."
         )
 
     llm_response = complete_text(prompt, system_prompt=system_prompt, model_config=model_config)
@@ -623,6 +622,12 @@ def build_final_response(state: AgentState) -> str:
         lines.append("Initial evidence: " + " | ".join(row_notes[:2]))
     lines.append("Ask for a chart, data quality check, summary, or report and I will use only this folder's data context.")
     return "\n\n".join(lines)
+
+
+def _model_config_for_state(state: AgentState):
+    user_id = str(state.get("user_id") or "")
+    return load_effective_model_config(lambda: load_user_model_config(user_id))
+
 
 def run_null_profile(folder_id: str | None, table: dict[str, Any]) -> dict[str, Any] | None:
     if not folder_id:

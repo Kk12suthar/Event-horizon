@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, Bell, ChevronDown, Shield, LogOut, User } from 'lucide-react';
+import { Menu, Bell, ChevronDown, Shield, LogOut, User, KeyRound } from 'lucide-react';
 import type { User as UserType, Notification } from '@/types';
 import {
   DropdownMenu,
@@ -87,6 +87,13 @@ export function TopBar({ breadcrumb, pageTitle, user, onLogout, onNavigate, onMo
                 Admin Panel
               </DropdownMenuItem>
             )}
+            <DropdownMenuItem
+              onClick={() => { onNavigate('/app/model-access'); setShowUserMenu(false); }}
+              className="text-[#B8B8B8] focus:text-white focus:bg-[#181818] cursor-pointer"
+            >
+              <KeyRound className="w-4 h-4 mr-2" />
+              Model Access
+            </DropdownMenuItem>
             <DropdownMenuItem
               className="text-[#B8B8B8] focus:text-white focus:bg-[#181818] cursor-pointer"
             >

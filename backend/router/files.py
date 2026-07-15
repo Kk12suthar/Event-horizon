@@ -15,8 +15,15 @@ import uuid
 import json
 
 from security.policy import current_user_id, require_folder_access, user_from_request
+from utils.upload_quota import enforce_new_file_quota, get_upload_quota_snapshot
 
 router = APIRouter(prefix="/api/v1/file", tags=["files"])
+
+
+@router.get("/quota", response_model=MessageResponse)
+def get_file_quota(request: Request, db: Session = Depends(get_db)) -> MessageResponse:
+    user_id = current_user_id(user_from_request(request))
+    return MessageResponse(message="Success", data=get_upload_quota_snapshot(db, user_id))
 
 
 def _hexify(val):
@@ -78,11 +85,13 @@ def create_file(payload: FileCreate, request: Request, db: Session = Depends(get
         require_folder_access(payload.parent_folder_id, user, db, min_level="ANALYST")
         payload_data = payload.dict()
         payload_data["uploaded_by"] = current_user_id(user)
+        payload_data["status"] = "UPLOADED"
+        enforce_new_file_quota(db, payload_data["uploaded_by"], int(payload.size_bytes))
         q = text(
             """
-            INSERT INTO instance01.mtd_file(id, name, created_at, uploaded_by, status, parent_folder_id, original_name)
+            INSERT INTO instance01.mtd_file(id, name, created_at, uploaded_by, status, parent_folder_id, original_name, size_bytes)
             VALUES (CAST(:id AS uuid), :name, :created_at, :uploaded_by,
-                    :status, CAST(:parent_folder_id AS uuid), :originalName)
+                    :status, CAST(:parent_folder_id AS uuid), :originalName, :size_bytes)
             """
         )
         db.execute(q, payload_data)

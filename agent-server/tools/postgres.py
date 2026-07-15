@@ -396,6 +396,33 @@ def create_transform_table(
 
     with _connect(cfg) as conn:
         try:
+            max_prepared_tables = max(1, int(os.getenv("MAX_PREPARED_TABLES_PER_USER", "1")))
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as quota_cur:
+                quota_cur.execute(
+                    "SELECT pg_advisory_xact_lock(hashtext(%s))",
+                    (f"eventhorizon:transform:user:{user_id}",),
+                )
+                quota_cur.execute(
+                    """
+                    SELECT metadata->>'table_id' AS table_id,
+                           COALESCE(friendly_name, table_name) AS name,
+                           folder_id, session_id, created_at
+                    FROM uploads.table_registry
+                    WHERE table_type = 'agent_created'
+                      AND created_by = %s
+                    ORDER BY created_at DESC
+                    """,
+                    (user_id,),
+                )
+                existing_tables = [dict(row) for row in quota_cur.fetchall()]
+                if len(existing_tables) >= max_prepared_tables:
+                    conn.rollback()
+                    return {
+                        "error": "This account has already created its one allowed prepared table. Use the existing table for Visualize and Publish.",
+                        "code": "prepared_table_limit_reached",
+                        "limit": max_prepared_tables,
+                        "existing_table": existing_tables[0],
+                    }
             _sync_folder_views(conn, cfg, folder_id, mapping)
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(

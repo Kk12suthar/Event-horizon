@@ -1,22 +1,24 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { isDevGmailSignInEnabled } from '@/lib/api';
 
 export function SignIn() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const { error } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [googleEnabled, setGoogleEnabled] = useState(false);
   const devGmailSignInEnabled = isDevGmailSignInEnabled();
 
   const validate = () => {
@@ -44,6 +46,19 @@ export function SignIn() {
     }
   };
 
+  const handleGoogleCredential = useCallback(async (credential: string, nonce: string) => {
+    try {
+      const success = await loginWithGoogle(credential, nonce);
+      if (success) navigate('/app/project');
+    } catch (err) {
+      error('Google Sign In Failed', err instanceof Error ? err.message : 'Could not sign in with Google');
+    }
+  }, [error, loginWithGoogle, navigate]);
+
+  const handleGoogleError = useCallback((message: string) => {
+    error('Google Sign In', message);
+  }, [error]);
+
   const handleDevGmailSignIn = async () => {
     const devEmail = 'tester@gmail.com';
     const devPassword = 'local-dev-password';
@@ -68,7 +83,18 @@ export function SignIn() {
       <h1 className="text-2xl font-bold text-white">Welcome back</h1>
       <p className="mt-2 text-sm text-[#A1A1AA]">Sign in to your workspace</p>
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+      <div className="mt-8 space-y-4">
+        <GoogleSignInButton disabled={isLoading} onCredential={handleGoogleCredential} onError={handleGoogleError} onAvailabilityChange={setGoogleEnabled} />
+        {googleEnabled && (
+          <div className="flex items-center gap-3 text-xs text-[#71717A]">
+            <span className="h-px flex-1 bg-[#242424]" />
+            <span>or continue with email</span>
+            <span className="h-px flex-1 bg-[#242424]" />
+          </div>
+        )}
+      </div>
+
+      <form onSubmit={handleSubmit} className="mt-5 space-y-5">
         <div>
           <Label htmlFor="email" className="text-xs font-medium text-[#A1A1AA] uppercase tracking-wider">
             Email

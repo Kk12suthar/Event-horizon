@@ -191,6 +191,7 @@ class FileCreate(FileBase):
     uploaded_by: str
     status: str
     parent_folder_id: str
+    size_bytes: int = Field(..., gt=0)
 
 
 class FileEdit(FileBase):
@@ -209,6 +210,7 @@ class FileOut(BaseModel):
     status: str
     parent_folder_id: str
     originalName: Optional[str] = None
+    size_bytes: int = 0
 
 
 # ---------------------------------------------------------------------------

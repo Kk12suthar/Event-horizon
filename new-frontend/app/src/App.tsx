@@ -10,6 +10,7 @@ import { Landing } from '@/pages/Landing';
 import { Projects } from '@/pages/Projects';
 import { Workspace } from '@/pages/Workspace';
 import { AdminPanel } from '@/pages/AdminPanel';
+import { ModelAccess } from '@/pages/ModelAccess';
 import { useAuth } from '@/hooks/useAuth';
 import type { UserRole, WorkspaceMode } from '@/types';
 
@@ -72,6 +73,7 @@ function AppRoutes() {
         <Route path="transform" element={<RedirectToWorkspace mode="prepare" />} />
         <Route path="dashboard" element={<RedirectToWorkspace mode="visualize" />} />
         <Route path="reports" element={<RedirectToWorkspace mode="publish" />} />
+        <Route path="model-access" element={<ModelAccess />} />
         <Route path="admin-panel" element={<ProtectedRoute requiredRoles={['Admin']}><AdminPanel /></ProtectedRoute>} />
       </Route>
 

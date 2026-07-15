@@ -2,6 +2,7 @@ import {
   FolderKanban,
   Sparkles,
   Shield,
+  KeyRound,
   ChevronLeft,
   ChevronRight,
   HelpCircle,
@@ -26,6 +27,7 @@ interface SidebarProps {
 const navItems = [
   { label: 'Projects', icon: FolderKanban, route: '/app/project', roles: ['Admin', 'Analyst', 'Viewer'] as const },
   { label: 'Workspace', icon: Sparkles, route: '/app/workspace', roles: ['Admin', 'Analyst', 'Viewer'] as const },
+  { label: 'Model Access', icon: KeyRound, route: '/app/model-access', roles: ['Admin', 'Analyst', 'Viewer'] as const },
 ];
 
 export function Sidebar({ isOpen, onToggle, currentRoute, onNavigate, user, selectedFolder, selectedProject }: SidebarProps) {

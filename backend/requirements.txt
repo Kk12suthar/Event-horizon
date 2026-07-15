@@ -11,6 +11,7 @@ PyJWT>=2.10,<3
 passlib[bcrypt]>=1.7,<2
 cryptography>=44,<46
 firebase-admin>=6.6,<8
+google-auth>=2.35,<3
 requests>=2.32,<3
 pandas>=2.2,<3
 numpy>=2.1,<3

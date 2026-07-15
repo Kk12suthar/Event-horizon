@@ -23,9 +23,15 @@ from reports.writer import build_report_file
 from streaming.events import sse_json
 from tools.postgres import get_folder_status
 from llm.client import OPENROUTER_BASE_URL, resolve_model_name
-from runtime.model_config import ModelConfigUpdate, apply_model_config_update, config_status_from_effective, load_effective_model_config
-from runtime.model_store import load_workspace_model_config, save_workspace_model_config
-from security.access import require_admin, require_folder_access
+from runtime.user_model_config import (
+    ModelConfigUpdate,
+    apply_model_config_update,
+    config_status_from_effective,
+    environment_model_fallback_allowed,
+    load_effective_model_config,
+)
+from runtime.user_model_store import load_user_model_config, save_user_model_config
+from security.access import require_folder_access
 from security.auth import require_user_from_authorization
 from shared.workspace_store import (
     WorkspaceStoreError,
@@ -145,18 +151,21 @@ async def live() -> dict[str, str]:
 
 @app.get("/agent/model-config")
 async def get_model_config(authorization: str | None = Header(default=None)) -> dict[str, Any]:
-    require_user_from_authorization(authorization)
-    return _model_config_status()
+    user = require_user_from_authorization(authorization)
+    return _model_config_status(str(user["sub"]))
 
 
 @app.put("/agent/model-config")
 async def update_model_config(payload: ModelConfigRequest, authorization: str | None = Header(default=None)) -> dict[str, Any]:
     user = require_user_from_authorization(authorization)
-    require_admin(str(user["sub"]))
+    user_id = str(user["sub"])
+    if environment_model_fallback_allowed():
+        raise HTTPException(403, "Local development uses the server environment model configuration.")
     try:
         return apply_model_config_update(
             ModelConfigUpdate(**(payload.model_dump() if hasattr(payload, "model_dump") else payload.dict())),
-            save_config=lambda config: save_workspace_model_config(config, updated_by=str(user["sub"])),
+            save_config=lambda config: save_user_model_config(user_id, config),
+            existing_config=load_user_model_config(user_id),
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
@@ -509,8 +518,8 @@ async def download_report(folder_id: str, report_id: str, format: str, authoriza
         raise HTTPException(404, "Report not found")
     return FileResponse(str(resolved), filename=resolved.name)
 
-def _model_config_status() -> dict[str, Any]:
-    config = load_effective_model_config(load_workspace_model_config)
+def _model_config_status(user_id: str | None = None) -> dict[str, Any]:
+    config = load_effective_model_config(lambda: load_user_model_config(str(user_id or "")))
     return config_status_from_effective(config)
 
 

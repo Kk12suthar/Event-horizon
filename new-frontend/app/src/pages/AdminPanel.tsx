@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Progress } from '@/components/ui/progress';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { fetchAgentModelConfig, updateAgentModelConfig, type AgentModelConfig } from '@/lib/api';
-import { users, license, apiKeys } from '@/data/mockData';
+import { users, license } from '@/data/mockData';
 import type { User, UserRole } from '@/types';
 
 type AdminTab = 'users' | 'access' | 'licenses' | 'model' | 'projects';
@@ -370,7 +370,7 @@ function LicensesTab() {
   );
 }
 
-function ModelTab() {
+export function ModelTab() {
   const [activeSubTab, setActiveSubTab] = useState<'runtime' | 'keys' | 'config'>('runtime');
   const [provider, setProvider] = useState('openrouter');
   const [model, setModel] = useState('openai/gpt-4o');
@@ -389,7 +389,7 @@ function ModelTab() {
     { id: 'openai', label: 'OpenAI Direct', keyEnv: 'OPENAI_API_KEY', helper: 'Use for direct OpenAI model calls.' },
     { id: 'anthropic', label: 'Anthropic Direct', keyEnv: 'ANTHROPIC_API_KEY', helper: 'Use for direct Claude model calls.' },
     { id: 'google', label: 'Google Gemini Direct', keyEnv: 'GOOGLE_API_KEY', helper: 'Use for direct Gemini (AI Studio) model calls.' },
-    { id: 'vertex', label: 'Google Vertex AI', keyEnv: 'VERTEX_API_KEY', helper: 'Vertex AI. Leave key blank to use gcloud ADC, or paste a Vertex Express (AQ...) key.' },
+    { id: 'vertex', label: 'Google Vertex AI', keyEnv: 'VERTEX_API_KEY', helper: 'Use your own Vertex Express API key for this account.' },
   ];
 
   const openRouterExamples = ['openai/gpt-4o', '~openai/gpt-latest', 'anthropic/claude-sonnet-4.5', 'google/gemini-2.5-pro', 'meta-llama/llama-3.3-70b-instruct'];
@@ -404,6 +404,7 @@ function ModelTab() {
   const resolvedPreview = provider === 'openrouter' && model && !model.startsWith('openrouter/') ? `openrouter/${model}` : model;
   const activeRuntimeModel = runtimeConfig?.resolved_model || resolvedPreview || 'Not configured';
   const activeRuntimeProvider = runtimeConfig?.provider || provider;
+  const needsApiKey = !runtimeConfig?.key_configured || runtimeConfig.provider !== provider;
 
   useEffect(() => {
     let mounted = true;
@@ -445,7 +446,7 @@ function ModelTab() {
       });
       setRuntimeConfig(updated);
       setApiKey('');
-      setStatusMessage('Runtime model configuration updated. New chat requests will use this provider and model.');
+      setStatusMessage('Your model access was updated. New requests will use this provider and model.');
     } catch (error) {
       setStatusMessage(error instanceof Error ? error.message : 'Failed to update model configuration.');
     } finally {
@@ -457,10 +458,10 @@ function ModelTab() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#262626] bg-[#0D0D0D] p-5">
         <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-[#8C8C8C]">AI Runtime</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-[#8C8C8C]">Personal model access</p>
           <h2 className="mt-1 text-xl font-semibold text-white">Model and API key setup</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[#B8B8B8]">
-            OpenRouter is the recommended path: enter any OpenRouter model slug and one OpenRouter key. The server calls LiteLLM with the required <span className="font-mono text-[#E9B872]">openrouter/</span> prefix automatically.
+            Choose a provider and model, then add your own API key. The key is encrypted for your account and is never shared with another user. Deployment environment keys are not available to production users.
           </p>
         </div>
         <div className={`rounded-full px-3 py-1 text-xs font-semibold ${runtimeConfig?.key_configured ? 'bg-[#22C55E]/10 text-[#22C55E]' : 'bg-[#E9B872]/10 text-[#E9B872]'}`}>
@@ -469,7 +470,7 @@ function ModelTab() {
       </div>
 
       <div className="flex gap-1 rounded-xl border border-[#262626] bg-[#0D0D0D] p-1 w-fit">
-        <button onClick={() => setActiveSubTab('runtime')} className={`px-4 py-2 rounded-lg text-xs font-medium ${activeSubTab === 'runtime' ? 'bg-[#c16e43] text-[#0A0A0A]' : 'text-[#A1A1AA] hover:text-white'}`}>Runtime Setup</button>
+        <button onClick={() => setActiveSubTab('runtime')} className={`px-4 py-2 rounded-lg text-xs font-medium ${activeSubTab === 'runtime' ? 'bg-[#c16e43] text-[#0A0A0A]' : 'text-[#A1A1AA] hover:text-white'}`}>Model Setup</button>
         <button onClick={() => setActiveSubTab('keys')} className={`px-4 py-2 rounded-lg text-xs font-medium ${activeSubTab === 'keys' ? 'bg-[#c16e43] text-[#0A0A0A]' : 'text-[#A1A1AA] hover:text-white'}`}>Provider Keys</button>
         <button onClick={() => setActiveSubTab('config')} className={`px-4 py-2 rounded-lg text-xs font-medium ${activeSubTab === 'config' ? 'bg-[#c16e43] text-[#0A0A0A]' : 'text-[#A1A1AA] hover:text-white'}`}>Agent Assignment</button>
       </div>
@@ -491,8 +492,9 @@ function ModelTab() {
                 <p className="mt-2 text-xs leading-5 text-[#8C8C8C]">Runtime value: <span className="font-mono text-[#E9B872]">{resolvedPreview || 'not set'}</span></p>
               </div>
               <div>
-                <label className="text-xs uppercase tracking-wider text-[#8C8C8C]">{selectedProvider.keyEnv}</label>
+                <label className="text-xs uppercase tracking-wider text-[#8C8C8C]">{selectedProvider.label} API key</label>
                 <Input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder={runtimeConfig?.key_configured ? 'Leave blank to keep current key' : 'Paste API key'} className="mt-1 bg-[#000000] border-[#262626] text-white" />
+                {needsApiKey && <p className="mt-2 text-xs leading-5 text-[#E9B872]">A key is required the first time you use this provider.</p>}
               </div>
               <div>
                 <label className="text-xs uppercase tracking-wider text-[#8C8C8C]">Temperature</label>
@@ -525,19 +527,19 @@ function ModelTab() {
             </div>
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Button onClick={handleSave} disabled={isSaving || isLoading || !model.trim()} className="bg-[#c16e43] text-[#0A0A0A] hover:bg-[#d08a5e] disabled:opacity-50">
-                {isSaving ? 'Saving...' : 'Save Runtime Config'}
+              <Button onClick={handleSave} disabled={isSaving || isLoading || !model.trim() || (needsApiKey && !apiKey.trim())} className="bg-[#c16e43] text-[#0A0A0A] hover:bg-[#d08a5e] disabled:opacity-50">
+                {isSaving ? 'Saving...' : 'Save Model Access'}
               </Button>
               {statusMessage && <p className="text-sm text-[#B8B8B8]">{statusMessage}</p>}
             </div>
           </div>
 
           <div className="rounded-2xl border border-[#262626] bg-[#0D0D0D] p-6">
-            <h3 className="text-sm font-semibold text-white">Current runtime</h3>
+            <h3 className="text-sm font-semibold text-white">Current account</h3>
             <div className="mt-4 space-y-3 text-sm">
               <RuntimeRow label="Provider" value={runtimeConfig?.provider || provider} />
               <RuntimeRow label="Model" value={runtimeConfig?.resolved_model || resolvedPreview || 'Not configured'} mono />
-              <RuntimeRow label="Key env" value={runtimeConfig?.key_env || selectedProvider.keyEnv} mono />
+              <RuntimeRow label="Key ownership" value={runtimeConfig?.key_configured ? 'Your encrypted key' : 'Not configured'} />
               <RuntimeRow label="Key status" value={runtimeConfig?.key_configured ? 'Configured' : 'Missing'} />
               <RuntimeRow label="Base URL" value={runtimeConfig?.base_url || baseUrl || 'Default'} mono />
             </div>
@@ -551,14 +553,13 @@ function ModelTab() {
       {activeSubTab === 'keys' && (
         <div className="rounded-2xl border border-[#262626] bg-[#0D0D0D] overflow-x-auto">
           <table className="w-full min-w-[560px]">
-            <thead><tr className="border-b border-[#262626]"><th className="text-left px-4 py-3 text-xs font-medium text-[#8C8C8C] uppercase">Provider</th><th className="text-left px-4 py-3 text-xs font-medium text-[#8C8C8C] uppercase">Models</th><th className="text-left px-4 py-3 text-xs font-medium text-[#8C8C8C] uppercase">Runtime Key Status</th></tr></thead>
-            <tbody>{apiKeys.map((key) => {
-              const isRuntimeProvider = key.provider.toLowerCase().replace(/\s+/g, '') === provider.replace(/_/g, '');
-              const configured = isRuntimeProvider ? Boolean(runtimeConfig?.key_configured) : key.hasKey;
+            <thead><tr className="border-b border-[#262626]"><th className="text-left px-4 py-3 text-xs font-medium text-[#8C8C8C] uppercase">Provider</th><th className="text-left px-4 py-3 text-xs font-medium text-[#8C8C8C] uppercase">Access</th><th className="text-left px-4 py-3 text-xs font-medium text-[#8C8C8C] uppercase">Your key status</th></tr></thead>
+            <tbody>{providers.map((item) => {
+              const configured = runtimeConfig?.provider === item.id && Boolean(runtimeConfig.key_configured);
               return (
-                <tr key={key.provider} className="border-b border-[#262626] last:border-0 hover:bg-[#1B1B1B]">
-                  <td className="px-4 py-3 text-sm text-white">{key.provider}</td>
-                  <td className="px-4 py-3 text-sm text-[#B8B8B8]">{key.models.join(', ')}</td>
+                <tr key={item.id} className="border-b border-[#262626] last:border-0 hover:bg-[#1B1B1B]">
+                  <td className="px-4 py-3 text-sm text-white">{item.label}</td>
+                  <td className="px-4 py-3 text-sm text-[#B8B8B8]">Supported for your account</td>
                   <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${configured ? 'bg-[#22C55E]/10 text-[#22C55E]' : 'bg-[#F97066]/10 text-[#F97066]'}`}>{configured ? 'Configured' : 'Missing'}</span></td>
                 </tr>
               );
@@ -572,8 +573,8 @@ function ModelTab() {
           <div className="rounded-2xl border border-[#262626] bg-[#0D0D0D] p-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-[#8C8C8C]">Runtime assignment</p>
-                <h3 className="mt-1 text-lg font-semibold text-white">All agent surfaces use the active runtime model</h3>
+                <p className="text-xs uppercase tracking-[0.18em] text-[#8C8C8C]">Account assignment</p>
+                <h3 className="mt-1 text-lg font-semibold text-white">All agent surfaces use your active model</h3>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-[#B8B8B8]">
                   There is no separate tools model. The LangGraph nodes call deterministic backend tools, then the configured runtime model writes the final answer using that tool evidence.
                 </p>
@@ -602,7 +603,7 @@ function ModelTab() {
             </div>
 
             <div className="mt-5 rounded-xl border border-[#262626] bg-[#101010] p-4 text-xs leading-5 text-[#D8D8D8]">
-              Change provider, model slug, or API key in Runtime Setup. New chat, dashboard, and report requests use that runtime immediately.
+              Change your provider, model slug, or API key in Model Setup. New Prepare, Visualize, and Publish requests use it immediately.
             </div>
           </div>
         </div>

@@ -35,7 +35,7 @@ export IMAGE_TAG
 
 REGISTRY_HOST="${GCP_REGION}-docker.pkg.dev"
 ACCESS_TOKEN=$(metadata instance/service-accounts/default/token | jq -r .access_token)
-printf '%s' "$ACCESS_TOKEN" | docker login -u oauth2accesstoken --password-stdin "https://$REGISTRY_HOST"
+printf '%s' "$ACCESS_TOKEN" | docker login -u oauth2accesstoken --password-stdin "$REGISTRY_HOST"
 
 docker compose --env-file .env -f docker-compose.prod.yml pull
 docker compose --env-file .env -f docker-compose.prod.yml up -d --remove-orphans --wait --wait-timeout 240
