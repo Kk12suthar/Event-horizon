@@ -76,7 +76,7 @@ export function VerifyEmail() {
       <p className="mt-2 text-sm text-[#A1A1AA]">The verification link is invalid or expired.</p>
       <div className="flex justify-center gap-3 mt-6">
         <Link to="/signup">
-          <Button variant="outline" className="h-11 border-[#2A2A2A] text-[#A1A1AA] hover:bg-[#1C1C1C]">
+          <Button variant="outline" className="h-11 border-[#242424] text-[#A1A1AA] hover:bg-[#1C1C1C]">
             Back to Sign Up
           </Button>
         </Link>

@@ -90,7 +90,7 @@ export function ResetPassword() {
               placeholder="Enter new password"
               value={password}
               onChange={(e) => { setPassword(e.target.value); setErrors(p => ({ ...p, password: undefined })); }}
-              className={`h-11 bg-[#161616] border-[#2A2A2A] text-white placeholder:text-[#71717A] focus:border-[#c16e43] pr-10 ${errors.password ? 'border-[#F97066]' : ''}`}
+              className={`h-11 bg-[#101010] border-[#242424] text-white placeholder:text-[#71717A] focus:border-[#c16e43] pr-10 ${errors.password ? 'border-[#F97066]' : ''}`}
             />
             <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#71717A] hover:text-white">
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -107,7 +107,7 @@ export function ResetPassword() {
               placeholder="Confirm new password"
               value={confirm}
               onChange={(e) => { setConfirm(e.target.value); setErrors(p => ({ ...p, confirm: undefined })); }}
-              className={`h-11 bg-[#161616] border-[#2A2A2A] text-white placeholder:text-[#71717A] focus:border-[#c16e43] pr-10 ${errors.confirm ? 'border-[#F97066]' : ''}`}
+              className={`h-11 bg-[#101010] border-[#242424] text-white placeholder:text-[#71717A] focus:border-[#c16e43] pr-10 ${errors.confirm ? 'border-[#F97066]' : ''}`}
             />
             <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#71717A] hover:text-white">
               {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

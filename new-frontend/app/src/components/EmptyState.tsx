@@ -24,8 +24,8 @@ export function EmptyState({ icon = 'folder', title, description, action }: Empt
 
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-      <div className="w-16 h-16 rounded-xl bg-[#161616] border border-[#2A2A2A] flex items-center justify-center mb-4">
-        <Icon className="w-8 h-8 text-[#2A2A2A]" />
+      <div className="w-16 h-16 rounded-xl bg-[#101010] border border-[#242424] flex items-center justify-center mb-4">
+        <Icon className="w-8 h-8 text-[#242424]" />
       </div>
       <h3 className="text-lg font-semibold text-[#71717A]">{title}</h3>
       {description && (

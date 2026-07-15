@@ -38,9 +38,9 @@ export function Sidebar({ isOpen, onToggle, currentRoute, onNavigate, user, sele
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#151515] border-r border-[#2E2E2E]">
+    <div className="flex flex-col h-full bg-[#0D0D0D] border-r border-[#262626]">
       {/* Logo */}
-      <div className={`flex items-center h-14 px-4 border-b border-[#2E2E2E] ${!isOpen ? 'justify-center' : ''}`}>
+      <div className={`flex items-center h-14 px-4 border-b border-[#262626] ${!isOpen ? 'justify-center' : ''}`}>
         {isOpen ? (
           <>
             <span className="text-lg font-bold text-white tracking-tight">
@@ -48,7 +48,7 @@ export function Sidebar({ isOpen, onToggle, currentRoute, onNavigate, user, sele
             </span>
             <button
               onClick={onToggle}
-              className="ml-auto w-7 h-7 flex items-center justify-center rounded-lg text-[#8C8C8C] hover:text-white hover:bg-[#1E1E1E] transition-colors"
+              className="ml-auto w-7 h-7 flex items-center justify-center rounded-lg text-[#8C8C8C] hover:text-white hover:bg-[#181818] transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -56,7 +56,7 @@ export function Sidebar({ isOpen, onToggle, currentRoute, onNavigate, user, sele
         ) : (
           <button
             onClick={onToggle}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-[#8C8C8C] hover:text-white hover:bg-[#1E1E1E] transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-[#8C8C8C] hover:text-white hover:bg-[#181818] transition-colors"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -81,9 +81,9 @@ export function Sidebar({ isOpen, onToggle, currentRoute, onNavigate, user, sele
                 w-full flex items-center gap-3 h-10 rounded-lg transition-all duration-200 relative
                 ${isOpen ? 'px-3' : 'px-0 justify-center'}
                 ${active
-                  ? 'bg-[#c16e43]/10 text-[#E4E4E7]'
+                  ? 'bg-[#181818] text-[#E4E4E7]'
                   : hasAccess
-                    ? 'text-[#B8B8B8] hover:bg-[#1E1E1E] hover:text-white'
+                    ? 'text-[#B8B8B8] hover:bg-[#181818] hover:text-white'
                     : 'text-[#B8B8B8]/40 cursor-not-allowed'
                 }
               `}
@@ -109,8 +109,8 @@ export function Sidebar({ isOpen, onToggle, currentRoute, onNavigate, user, sele
               w-full flex items-center gap-3 h-10 rounded-lg transition-all duration-200 relative
               ${isOpen ? 'px-3' : 'px-0 justify-center'}
               ${isActive('/app/admin-panel')
-                ? 'bg-[#c16e43]/10 text-[#E4E4E7]'
-                : 'text-[#B8B8B8] hover:bg-[#1E1E1E] hover:text-white'
+                ? 'bg-[#181818] text-[#E4E4E7]'
+                : 'text-[#B8B8B8] hover:bg-[#181818] hover:text-white'
               }
             `}
           >
@@ -128,11 +128,11 @@ export function Sidebar({ isOpen, onToggle, currentRoute, onNavigate, user, sele
 
         {/* Active Folder Context */}
         {selectedFolder && isOpen && (
-          <div className="mt-6 pt-4 border-t border-[#2E2E2E]">
+          <div className="mt-6 pt-4 border-t border-[#262626]">
             <p className="px-3 text-[10px] font-medium text-[#8C8C8C] uppercase tracking-wider mb-2">
               Active Folder
             </p>
-            <div className="px-3 py-2 rounded-lg bg-[#1E1E1E]">
+            <div className="px-3 py-2 rounded-lg bg-[#181818]">
               <div className="flex items-center gap-2">
                 <FolderOpen className="w-4 h-4 text-[#E4E4E7] flex-shrink-0" />
                 <span className="text-sm font-semibold text-white truncate">
@@ -148,7 +148,7 @@ export function Sidebar({ isOpen, onToggle, currentRoute, onNavigate, user, sele
       </nav>
 
       {/* Bottom */}
-      <div className={`px-3 py-3 border-t border-[#2E2E2E] ${!isOpen ? 'flex justify-center' : ''}`}>
+      <div className={`px-3 py-3 border-t border-[#262626] ${!isOpen ? 'flex justify-center' : ''}`}>
         <button
           className={`flex items-center gap-2 text-[#8C8C8C] hover:text-white transition-colors ${!isOpen ? 'justify-center w-8 h-8' : 'px-3 h-9 w-full'}`}
         >

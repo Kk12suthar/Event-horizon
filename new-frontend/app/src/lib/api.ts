@@ -102,12 +102,16 @@ export interface WorkspaceSnapshotResponse {
 }
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 
+const runtimeOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+const defaultBackendUrl = import.meta.env.PROD ? runtimeOrigin : 'http://127.0.0.1:8001';
+const defaultAgentUrl = import.meta.env.PROD ? runtimeOrigin : 'http://127.0.0.1:8010';
+
 export const BACKEND_URL = trimTrailingSlash(
-  import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8001',
+  import.meta.env.VITE_BACKEND_URL || defaultBackendUrl,
 );
 export const API_BASE_URL = `${BACKEND_URL}/api/v1`;
 export const AGENT_URL = trimTrailingSlash(
-  import.meta.env.VITE_AGENT_URL || 'http://127.0.0.1:8010',
+  import.meta.env.VITE_AGENT_URL || defaultAgentUrl,
 );
 export const USING_LANGGRAPH_AGENT = true;
 export const DEV_GMAIL_SIGNIN_ENABLED =

@@ -48,7 +48,7 @@ export function Toast({ notification, onDismiss }: ToastProps) {
   }, [progress, notification.id, onDismiss]);
 
   return (
-    <div className={`toast-enter relative flex items-start gap-3 w-full max-w-[400px] bg-[#161616] border border-[#2A2A2A] border-l-[3px] ${borderColors[notification.type]} rounded-xl p-4 shadow-[0_10px_40px_rgba(0,0,0,0.5)]`}>
+    <div className={`toast-enter relative flex items-start gap-3 w-full max-w-[400px] bg-[#101010] border border-[#242424] border-l-[3px] ${borderColors[notification.type]} rounded-xl p-4 shadow-[0_10px_40px_rgba(0,0,0,0.5)]`}>
       <Icon className="w-5 h-5 mt-0.5 flex-shrink-0" style={{
         color: notification.type === 'success' ? '#22C55E' :
                notification.type === 'error' ? '#F97066' :
@@ -65,7 +65,7 @@ export function Toast({ notification, onDismiss }: ToastProps) {
         <X className="w-4 h-4" />
       </button>
       {/* Progress bar */}
-      <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#2A2A2A] rounded-b-xl overflow-hidden">
+      <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#242424] rounded-b-xl overflow-hidden">
         <div
           className="h-full transition-all duration-100 ease-linear"
           style={{

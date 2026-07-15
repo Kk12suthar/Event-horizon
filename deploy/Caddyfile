@@ -1,0 +1,92 @@
+{
+	email {$ACME_EMAIL}
+	admin off
+}
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		-Server
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	}
+
+	handle /api/* {
+		reverse_proxy backend:8001 {
+			flush_interval -1
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 10m
+				read_timeout 10m
+				write_timeout 10m
+				keepalive 2m
+			}
+		}
+	}
+
+	handle /agent/* {
+		reverse_proxy agent:8010 {
+			flush_interval -1
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 10m
+				read_timeout 10m
+				write_timeout 10m
+				keepalive 2m
+			}
+		}
+	}
+
+	handle /report/* {
+		reverse_proxy agent:8010 {
+			flush_interval -1
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 10m
+				read_timeout 10m
+				write_timeout 10m
+				keepalive 2m
+			}
+		}
+	}
+
+	handle /health* {
+		reverse_proxy agent:8010 {
+			flush_interval -1
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 30s
+				read_timeout 30s
+				write_timeout 30s
+				keepalive 2m
+			}
+		}
+	}
+
+	handle /reports/* {
+		reverse_proxy agent:8010 {
+			flush_interval -1
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 10m
+				read_timeout 10m
+				write_timeout 10m
+				keepalive 2m
+			}
+		}
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

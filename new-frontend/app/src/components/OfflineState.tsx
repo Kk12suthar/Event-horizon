@@ -8,7 +8,7 @@ interface OfflineStateProps {
 export function OfflineState({ onRetry, fullPage = true }: OfflineStateProps) {
   const content = (
     <div className="flex flex-col items-center justify-center gap-4 max-w-md mx-auto text-center">
-      <div className="w-16 h-16 rounded-2xl bg-[#161616] border border-[#2A2A2A] flex items-center justify-center">
+      <div className="w-16 h-16 rounded-2xl bg-[#101010] border border-[#242424] flex items-center justify-center">
         <WifiOff className="w-8 h-8 text-[#F97066]" />
       </div>
       <h2 className="text-xl font-semibold text-white">Server unavailable</h2>

@@ -18,16 +18,16 @@
  */
 export const SPACE = {
   bg: '#000000', // app background (pure black - matches homepage void)
-  panel: '#161616', // raised surfaces (bubbles, cards) - greyish dark
-  panelAlt: '#111111', // rails / artifact panel - slightly raised from black
+  panel: '#101010', // raised surfaces (bubbles, cards) - greyish dark
+  panelAlt: '#090909', // rails / artifact panel - slightly raised from black
   border: '#262626', // hairline borders
-  hover: '#1E1E1E', // hover fill
+  hover: '#181818', // hover fill
   text: '#F4F4F5', // primary text / the only "accent"
   muted: '#8A8A8A', // secondary text
   subtle: '#5C5C5C', // tertiary text / captions
   brand: '#C16E43', // shared primary action background (matches --primary)
   brandHover: '#D07A4E', // restrained hover lift for primary actions
-  brandSoft: 'rgba(193, 110, 67, 0.14)', // selected mode / quiet emphasis
+  brandSoft: 'rgba(255, 255, 255, 0.06)', // neutral selected surface; brand stays on controls and borders
   brandBorder: 'rgba(193, 110, 67, 0.38)',
   onBrand: '#0A0A0A', // high-contrast content on the brand fill
   success: '#D4D4D8', // completed/ready only (small dot)

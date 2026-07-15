@@ -200,7 +200,7 @@ export function AgentActivityTrail({ steps, running = false }: AgentActivityTrai
 
   return (
     <div className="w-full max-w-[90%]">
-      <div className="overflow-hidden rounded-xl border border-[#262626] bg-[#161616]">
+      <div className="overflow-hidden rounded-xl border border-[#262626] bg-[#101010]">
         <button
           type="button"
           onClick={() => {

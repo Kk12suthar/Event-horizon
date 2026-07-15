@@ -6,7 +6,7 @@ interface LoadingStateProps {
 export function LoadingState({ message = 'Loading...', fullPage = false }: LoadingStateProps) {
   const content = (
     <div className="flex flex-col items-center justify-center gap-4">
-      <div className="w-10 h-10 border-2 border-[#2A2A2A] border-t-[#E4E4E7] rounded-full animate-spin-slow" />
+      <div className="w-10 h-10 border-2 border-[#242424] border-t-[#E4E4E7] rounded-full animate-spin-slow" />
       <p className="text-sm text-[#A1A1AA]">{message}</p>
     </div>
   );

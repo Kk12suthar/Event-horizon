@@ -79,7 +79,7 @@ export function SignIn() {
             placeholder="you@company.com"
             value={email}
             onChange={(e) => { setEmail(e.target.value); setErrors(prev => ({ ...prev, email: undefined })); }}
-            className={`mt-1.5 h-11 bg-[#161616] border-[#2A2A2A] text-white placeholder:text-[#71717A] focus:border-[#c16e43] focus:ring-[#c16e43]/20 ${errors.email ? 'border-[#F97066]' : ''}`}
+            className={`mt-1.5 h-11 bg-[#101010] border-[#242424] text-white placeholder:text-[#71717A] focus:border-[#c16e43] focus:ring-[#c16e43]/20 ${errors.email ? 'border-[#F97066]' : ''}`}
           />
           {errors.email && <p className="mt-1 text-xs text-[#F97066]">{errors.email}</p>}
         </div>
@@ -100,7 +100,7 @@ export function SignIn() {
               placeholder="Enter your password"
               value={password}
               onChange={(e) => { setPassword(e.target.value); setErrors(prev => ({ ...prev, password: undefined })); }}
-              className={`h-11 bg-[#161616] border-[#2A2A2A] text-white placeholder:text-[#71717A] focus:border-[#c16e43] focus:ring-[#c16e43]/20 pr-10 ${errors.password ? 'border-[#F97066]' : ''}`}
+              className={`h-11 bg-[#101010] border-[#242424] text-white placeholder:text-[#71717A] focus:border-[#c16e43] focus:ring-[#c16e43]/20 pr-10 ${errors.password ? 'border-[#F97066]' : ''}`}
             />
             <button
               type="button"
@@ -129,16 +129,16 @@ export function SignIn() {
         {devGmailSignInEnabled && (
           <div className="space-y-3">
             <div className="flex items-center gap-3 text-xs text-[#71717A]">
-              <span className="h-px flex-1 bg-[#2A2A2A]" />
+              <span className="h-px flex-1 bg-[#242424]" />
               <span>Local testing</span>
-              <span className="h-px flex-1 bg-[#2A2A2A]" />
+              <span className="h-px flex-1 bg-[#242424]" />
             </div>
             <Button
               type="button"
               variant="outline"
               disabled={isLoading}
               onClick={handleDevGmailSignIn}
-              className="w-full h-11 border-[#2A2A2A] bg-[#161616] text-white hover:bg-[#1E1E1E] hover:text-white"
+              className="w-full h-11 border-[#242424] bg-[#101010] text-white hover:bg-[#181818] hover:text-white"
             >
               <Mail className="w-4 h-4" />
               Continue with Gmail dev account

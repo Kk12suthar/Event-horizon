@@ -22,11 +22,11 @@ logger = logging.getLogger(__name__)
 
 # SECURITY FIX-009: Database connection configuration
 # Connection pooling and timeout settings for stability and security
-DB_POOL_SIZE = 20  # Maximum number of connections in pool
-DB_POOL_MAX_OVERFLOW = 10  # Maximum overflow connections beyond pool_size
-DB_POOL_TIMEOUT = 30  # Seconds to wait for connection from pool
-DB_POOL_RECYCLE = 3600  # Recycle connections after 1 hour
-DB_CONNECT_TIMEOUT = 10  # Connection timeout in seconds
+DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))
+DB_POOL_MAX_OVERFLOW = int(os.getenv("DB_POOL_MAX_OVERFLOW", "5"))
+DB_POOL_TIMEOUT = int(os.getenv("DB_POOL_TIMEOUT", "30"))
+DB_POOL_RECYCLE = int(os.getenv("DB_POOL_RECYCLE", "1800"))
+DB_CONNECT_TIMEOUT = int(os.getenv("DB_CONNECT_TIMEOUT", "10"))
 
 try:
     SQLALCHEMY_DATABASE_URL = (

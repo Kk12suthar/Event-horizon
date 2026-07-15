@@ -127,7 +127,7 @@ export function AppShell() {
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={() => setMobileMenuOpen(false)} />
-          <div className="absolute left-0 top-0 bottom-0 w-[280px] bg-[#161616] border-r border-[#2A2A2A]">
+          <div className="absolute left-0 top-0 bottom-0 w-[280px] bg-[#101010] border-r border-[#242424]">
             <Sidebar
               isOpen={true}
               onToggle={() => setMobileMenuOpen(false)}

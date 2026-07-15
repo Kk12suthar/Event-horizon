@@ -15,7 +15,7 @@ import { SPACE } from './theme';
  * Renders the three modes in pipeline order (Prepare Â· Visualize Â·
  * Publish) as a compact segmented control with 16â€“18px icons. The active mode
  * uses the shared muted-orange selection treatment; inactive modes use
- * muted `#8C8C8C` text with a `#1E1E1E` hover fill (Requirement 3.2).
+ * muted `#8C8C8C` text with a `#181818` hover fill (Requirement 3.2).
  *
  * Gating (Requirement 3.6): a disabled mode renders at 40% opacity with
  * `cursor: not-allowed`, a lock glyph, and a tooltip explaining what is
@@ -31,7 +31,7 @@ import { SPACE } from './theme';
 /** Inactive (idle) text color, per Requirement 3.2. */
 const INACTIVE_TEXT = '#8C8C8C';
 /** Inactive hover fill, per Requirement 3.2. */
-const INACTIVE_HOVER = '#1E1E1E';
+const INACTIVE_HOVER = '#181818';
 /** Active background: quiet brand selection highlight. */
 const ACTIVE_BG = SPACE.brandSoft;
 /** Active text uses the shared brand accent. */

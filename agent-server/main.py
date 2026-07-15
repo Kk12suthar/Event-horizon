@@ -102,16 +102,29 @@ app = FastAPI(
     description="General LangGraph agent runtime for EventHorizon.",
 )
 
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "AGENT_CORS_ORIGINS",
+        os.getenv("FRONTEND_URL", "http://127.0.0.1:5174"),
+    ).split(",")
+    if origin.strip()
+]
+if os.getenv("ENVIRONMENT", "development").lower() != "production":
+    allowed_origins.extend(
+        [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:5174",
+            "http://127.0.0.1:5174",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
+    )
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5174",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=list(dict.fromkeys(allowed_origins)),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "OPTIONS"],
     allow_headers=["*"],
