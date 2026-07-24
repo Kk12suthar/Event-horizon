@@ -147,20 +147,20 @@ class AgentHardeningTests(unittest.TestCase):
 
     def test_model_config_status_preserves_openrouter_provider_for_anthropic_slug(self) -> None:
         saved = {key: os.environ.get(key) for key in ("AGENT_MODEL", "MODEL_NAME", "AGENT_PROVIDER", "MODEL_PROVIDER", "OPENROUTER_API_KEY")}
-        original_loader = agent_main.load_workspace_model_config
+        original_loader = agent_main.load_user_model_config
         try:
-            agent_main.load_workspace_model_config = lambda: None
+            agent_main.load_user_model_config = lambda _user_id: None
             os.environ["AGENT_PROVIDER"] = "openrouter"
             os.environ["AGENT_MODEL"] = "openrouter/anthropic/claude-sonnet-4.5"
             os.environ["OPENROUTER_API_KEY"] = "test-key"
 
-            status = _model_config_status()
+            status = _model_config_status("user-1")
             self.assertEqual(status["provider"], "openrouter")
             self.assertEqual(status["resolved_model"], "openrouter/anthropic/claude-sonnet-4.5")
             self.assertEqual(status["key_env"], "OPENROUTER_API_KEY")
             self.assertTrue(status["key_configured"])
         finally:
-            agent_main.load_workspace_model_config = original_loader
+            agent_main.load_user_model_config = original_loader
             for key, value in saved.items():
                 if value is None:
                     os.environ.pop(key, None)

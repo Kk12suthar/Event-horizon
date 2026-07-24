@@ -17,7 +17,11 @@ interface AuthSignInResponse {
   expires_in?: number;
   user?: {
     uid?: string;
+    id?: string;
     email?: string;
+    name?: string;
+    role?: string;
+    picture?: string;
   };
 }
 
@@ -34,6 +38,22 @@ export interface AuthSessionPayload {
   firebaseUid?: string;
   firebaseEmail?: string;
   backendUser: JsonRecord;
+}
+
+export interface GoogleSignInConfig {
+  enabled: boolean;
+  client_id: string;
+}
+
+export interface UploadQuotaSnapshot {
+  limits: {
+    max_files: number;
+    max_file_bytes: number;
+    max_total_bytes: number;
+  };
+  usage: { file_count: number; total_bytes: number };
+  remaining: { file_count: number; total_bytes: number };
+  one_prepared_table_allowed: boolean;
 }
 
 export interface SseStreamHandlers {
@@ -102,12 +122,16 @@ export interface WorkspaceSnapshotResponse {
 }
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 
+const runtimeOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+const defaultBackendUrl = import.meta.env.PROD ? runtimeOrigin : 'http://127.0.0.1:8001';
+const defaultAgentUrl = import.meta.env.PROD ? runtimeOrigin : 'http://127.0.0.1:8010';
+
 export const BACKEND_URL = trimTrailingSlash(
-  import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8001',
+  import.meta.env.VITE_BACKEND_URL || defaultBackendUrl,
 );
 export const API_BASE_URL = `${BACKEND_URL}/api/v1`;
 export const AGENT_URL = trimTrailingSlash(
-  import.meta.env.VITE_AGENT_URL || 'http://127.0.0.1:8010',
+  import.meta.env.VITE_AGENT_URL || defaultAgentUrl,
 );
 export const USING_LANGGRAPH_AGENT = true;
 export const DEV_GMAIL_SIGNIN_ENABLED =
@@ -385,6 +409,29 @@ export async function signInRequest(email: string, password: string): Promise<Au
   };
 }
 
+export const getGoogleSignInConfig = () =>
+  apiFetch<GoogleSignInConfig>('/auth/google/config', { skipAuth: true });
+
+export async function googleSignInRequest(credential: string, nonce: string): Promise<AuthSessionPayload> {
+  const response = await fetch(`${API_BASE_URL}/auth/google`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ credential, nonce }),
+  });
+  const data = await readJson<AuthSignInResponse>(response);
+  if (!response.ok || !data.access_token || !data.refresh_token || !data.user) {
+    throw new Error(data.detail || data.message || 'Google sign-in failed');
+  }
+  return {
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+    expiresIn: data.expires_in || 1800,
+    firebaseUid: data.user.uid || data.user.id,
+    firebaseEmail: data.user.email,
+    backendUser: data.user as unknown as JsonRecord,
+  };
+}
+
 export async function signUpRequest(name: string, email: string, password: string) {
   const response = await fetch(`${API_BASE_URL}/auth/signup`, {
     method: 'POST',
@@ -530,6 +577,7 @@ export const createFileRecord = (input: {
   originalName: string;
   uploadedBy: string;
   parentFolderId: string;
+  sizeBytes: number;
   status?: 'UPLOADED' | 'PROCESSED' | 'FAILED';
 }) =>
   apiPost<JsonRecord>('/file/createFile', {
@@ -540,6 +588,7 @@ export const createFileRecord = (input: {
     uploaded_by: input.uploadedBy,
     status: input.status || 'UPLOADED',
     parent_folder_id: input.parentFolderId,
+    size_bytes: input.sizeBytes,
   });
 
 export const updateFileStatus = (id: string, status: 'UPLOADED' | 'PROCESSED' | 'FAILED') =>
@@ -603,6 +652,13 @@ export const fetchTablePreview = (input: {
   });
 
 export const getUploadWebSocketUrl = () => `${BACKEND_URL.replace(/^http/, 'ws')}/api/v1/webSockets/file-upload`;
+export const getUploadAccessToken = () => getAccessToken() || '';
+
+export async function fetchUploadQuota() {
+  const response = await apiGet<unknown>('/file/quota');
+  return unwrapData<UploadQuotaSnapshot>(response);
+}
+
 
 export const getAgentStreamUrl = (surface: 'transform' | 'dashboard') =>
   `${AGENT_URL}${surface === 'dashboard' ? '/agent/dashboard/stream' : '/agent/chat/stream'}`;

@@ -7,7 +7,7 @@ import { OfflineState } from '@/components/OfflineState';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useAppState } from '@/hooks/useAppState';
 import { useAuth } from '@/hooks/useAuth';
-import { createFileRecord, createId, getUploadWebSocketUrl, updateFileStatus } from '@/lib/api';
+import { createFileRecord, createId, getUploadAccessToken, getUploadWebSocketUrl, updateFileStatus } from '@/lib/api';
 import type { UploadedFile } from '@/types';
 
 interface UploadSocketResult {
@@ -155,6 +155,7 @@ export function Upload() {
             type: 'start_upload',
             totalFiles: selectedFiles.length,
             userId: user.id,
+            accessToken: getUploadAccessToken(),
             sessionId,
           }));
 
@@ -207,6 +208,7 @@ export function Upload() {
           originalName: file.name,
           uploadedBy: user.id,
           parentFolderId: selectedFolder.id,
+          sizeBytes: file.size,
           status: 'UPLOADED',
         });
       }
@@ -268,12 +270,12 @@ export function Upload() {
 
   return (
     <div className="flex h-full min-h-0 overflow-hidden bg-[#000000] max-lg:flex-col">
-      <div className={`${managerCollapsed ? 'w-12' : 'w-[320px]'} flex min-h-0 flex-shrink-0 flex-col bg-[#151515]/95 border-r border-[#2E2E2E] transition-all duration-200 max-lg:h-[260px] max-lg:w-full max-lg:border-b max-lg:border-r-0`}>
-        <div className="flex items-center justify-between p-3 border-b border-[#2E2E2E]">
+      <div className={`${managerCollapsed ? 'w-12' : 'w-[320px]'} flex min-h-0 flex-shrink-0 flex-col bg-[#0D0D0D]/95 border-r border-[#262626] transition-all duration-200 max-lg:h-[260px] max-lg:w-full max-lg:border-b max-lg:border-r-0`}>
+        <div className="flex items-center justify-between p-3 border-b border-[#262626]">
           {!managerCollapsed && <h3 className="text-sm font-semibold text-white">Files</h3>}
           <button
             onClick={() => setManagerCollapsed(!managerCollapsed)}
-            className="w-6 h-6 flex items-center justify-center rounded text-[#8C8C8C] hover:text-white hover:bg-[#1E1E1E]"
+            className="w-6 h-6 flex items-center justify-center rounded text-[#8C8C8C] hover:text-white hover:bg-[#181818]"
           >
             {managerCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
           </button>
@@ -286,7 +288,7 @@ export function Upload() {
               </div>
             ) : (
               fileList.map(file => (
-                <div key={file.id} className="flex items-center justify-between px-3 py-2.5 hover:bg-[#1E1E1E] group">
+                <div key={file.id} className="flex items-center justify-between px-3 py-2.5 hover:bg-[#181818] group">
                   <div className="flex items-center gap-2 min-w-0">
                     <FileSpreadsheet className="w-4 h-4 text-[#E4E4E7] flex-shrink-0" />
                     <div className="min-w-0">
@@ -332,7 +334,7 @@ export function Upload() {
             onDragLeave={onDragLeave}
             onDrop={onDrop}
             className={`border-2 border-dashed rounded-2xl min-h-[300px] w-full flex flex-col items-center justify-center px-6 transition-colors shadow-[0_18px_60px_rgba(0,0,0,0.18)] ${
-              isDragOver ? 'border-[#c16e43] bg-[#c16e43]/10' : 'border-[#2E2E2E] bg-[#151515]/70 hover:border-[#525252]'
+              isDragOver ? 'border-[#c16e43] bg-[#c16e43]/10' : 'border-[#262626] bg-[#0D0D0D]/70 hover:border-[#525252]'
             }`}
           >
             <UploadIcon className="w-12 h-12 text-[#E4E4E7] mb-3" />
@@ -347,7 +349,7 @@ export function Upload() {
               id="file-input"
             />
             <label htmlFor="file-input">
-              <Button variant="outline" className="mt-4 border-[#2E2E2E] text-[#B8B8B8] hover:bg-[#1E1E1E] hover:text-white" asChild>
+              <Button variant="outline" className="mt-4 border-[#262626] text-[#B8B8B8] hover:bg-[#181818] hover:text-white" asChild>
                 <span>{fileList.length > 0 ? 'Select More Files' : 'Select Files'}</span>
               </Button>
             </label>
@@ -357,7 +359,7 @@ export function Upload() {
             <div className="mt-6 space-y-2">
               <h4 className="text-sm font-semibold text-white">Selected Files</h4>
               {selectedFiles.map((file, i) => (
-                <div key={i} className="flex items-center justify-between bg-[#151515] border border-[#2E2E2E] rounded-lg px-4 py-3">
+                <div key={i} className="flex items-center justify-between bg-[#0D0D0D] border border-[#262626] rounded-lg px-4 py-3">
                   <div className="flex items-center gap-3">
                     <FileSpreadsheet className="w-5 h-5 text-[#E4E4E7]" />
                     <div>
@@ -374,7 +376,7 @@ export function Upload() {
           )}
 
           {uploadStage !== 'idle' && (
-            <div className="mt-6 p-4 bg-[#151515] border border-[#2E2E2E] rounded-xl">
+            <div className="mt-6 p-4 bg-[#0D0D0D] border border-[#262626] rounded-xl">
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-sm font-semibold text-white">
                   {uploadStage === 'uploading' ? 'Uploading...' :
@@ -383,7 +385,7 @@ export function Upload() {
                 </h4>
                 {uploadStage === 'uploading' && <span className="text-xs text-[#B8B8B8]">{uploadProgress}%</span>}
               </div>
-              {uploadStage === 'uploading' && <Progress value={uploadProgress} className="h-1.5 bg-[#2E2E2E]" />}
+              {uploadStage === 'uploading' && <Progress value={uploadProgress} className="h-1.5 bg-[#262626]" />}
               {uploadStage === 'creating' && <div className="flex items-center gap-2"><Loader2 className="w-4 h-4 text-[#E4E4E7] animate-spin" /><span className="text-xs text-[#B8B8B8]">Processing data...</span></div>}
               {uploadStage === 'complete' && <div className="flex items-center gap-2 text-[#22C55E]"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg><span className="text-xs">Upload complete!</span></div>}
             </div>
@@ -405,7 +407,7 @@ export function Upload() {
               {appState.activeSession && <span className="text-[10px] px-1.5 py-0.5 bg-[#22C55E]/10 text-[#22C55E] rounded-full">Active</span>}
             </button>
             {sessionExpanded && (
-              <div className="mt-2 p-3 bg-[#151515] border border-[#2E2E2E] rounded-lg">
+              <div className="mt-2 p-3 bg-[#0D0D0D] border border-[#262626] rounded-lg">
                 {appState.activeSession ? (
                   <div className="space-y-1 text-xs">
                     <p className="text-[#8C8C8C]">ID: <span className="text-white font-mono">{appState.activeSession.id}</span></p>
@@ -435,7 +437,7 @@ export function Upload() {
               <Button
                 variant="outline"
                 onClick={() => selectedFolder && navigate(`/app/transform?folderId=${selectedFolder.id}`)}
-                className="w-full h-11 border-[#2E2E2E] text-[#B8B8B8] hover:bg-[#1E1E1E] hover:text-white"
+                className="w-full h-11 border-[#262626] text-[#B8B8B8] hover:bg-[#181818] hover:text-white"
               >
                 {appState.activeSession ? 'Continue Transformation' : 'Start Transformation'}
               </Button>

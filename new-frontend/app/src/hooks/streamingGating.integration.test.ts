@@ -57,6 +57,20 @@ vi.mock('../lib/api', () => ({
       : 'http://test/agent/chat/stream',
   getUploadWebSocketUrl: () => 'ws://test/upload',
   createId: () => `id_${idCounter++}`,
+  getUploadAccessToken: () => 'signed-test-token',
+  fetchUploadQuota: vi.fn(async () => ({
+    limits: {
+      storage_capacity_bytes: 60 * 1024 ** 3,
+      storage_reserve_bytes: 15 * 1024 ** 3,
+      planned_users: 50,
+      storage_expansion_factor: 5,
+      max_files: 3,
+      max_file_bytes: 60 * 1024 ** 2,
+      max_total_bytes: 180 * 1024 ** 2,
+    },
+    usage: { file_count: 0, total_bytes: 0 },
+    remaining: { file_count: 3, total_bytes: 180 * 1024 ** 2 },
+  })),
   createFileRecord: vi.fn(async () => ({})),
   updateFileStatus: vi.fn(async () => ({})),
 }));

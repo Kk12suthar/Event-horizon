@@ -54,12 +54,13 @@ export function AppShell() {
     }
 
     if (path === '/app/workspace') return selectedFolder ? `Workspace / ${selectedFolder.name}` : 'Workspace';
+    if (path === '/app/model-access') return 'Model Access';
     if (path === '/app/admin-panel') return 'Admin Panel';
     return '';
   };
 
   const handleNavigate = (route: string) => {
-    const needsFolderContext = !route.includes('project') && !route.includes('admin-panel');
+    const needsFolderContext = !route.includes('project') && !route.includes('admin-panel') && !route.includes('model-access');
     const target =
       needsFolderContext && appState.selectedFolder && !route.includes('folderId=')
         ? `${route}?folderId=${appState.selectedFolder.id}`
@@ -76,7 +77,7 @@ export function AppShell() {
     ? 'home'
     : location.pathname.startsWith('/app/project')
       ? 'data'
-      : location.pathname.startsWith('/app/admin-panel')
+      : location.pathname.startsWith('/app/model-access') || location.pathname.startsWith('/app/admin-panel')
         ? 'settings'
         : undefined;
 
@@ -90,7 +91,7 @@ export function AppShell() {
         handleNavigate('/app/project');
         break;
       case 'settings':
-        if (auth.user?.role === 'Admin') handleNavigate('/app/admin-panel');
+        handleNavigate('/app/model-access');
         break;
       case 'help':
         toast.info(
@@ -108,6 +109,7 @@ export function AppShell() {
     const path = location.pathname;
     if (path === '/app/project') return 'Projects';
     if (path === '/app/workspace') return 'Workspace';
+    if (path === '/app/model-access') return 'Model Access';
     if (path === '/app/admin-panel') return 'Admin Panel';
     return '';
   };
@@ -127,7 +129,7 @@ export function AppShell() {
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={() => setMobileMenuOpen(false)} />
-          <div className="absolute left-0 top-0 bottom-0 w-[280px] bg-[#161616] border-r border-[#2A2A2A]">
+          <div className="absolute left-0 top-0 bottom-0 w-[280px] bg-[#101010] border-r border-[#242424]">
             <Sidebar
               isOpen={true}
               onToggle={() => setMobileMenuOpen(false)}

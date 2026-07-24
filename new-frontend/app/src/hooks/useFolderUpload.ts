@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   createFileRecord,
   createId,
+  fetchUploadQuota,
+  getUploadAccessToken,
   getUploadWebSocketUrl,
   updateFileStatus,
 } from '../lib/api';
@@ -195,6 +197,7 @@ export function useFolderUpload(ctx: UseFolderUploadContext): UseFolderUpload {
                 type: 'start_upload',
                 totalFiles: files.length,
                 userId: user.id,
+                accessToken: getUploadAccessToken(),
                 sessionId,
               }),
             );
@@ -263,6 +266,20 @@ export function useFolderUpload(ctx: UseFolderUploadContext): UseFolderUpload {
 
       const createdFileIds: string[] = [];
       try {
+        const quota = await fetchUploadQuota();
+        const requestedBytes = allowed.reduce((sum, file) => sum + file.size, 0);
+        const oversized = allowed.find((file) => file.size > quota.limits.max_file_bytes);
+        const mib = (bytes: number) => `${Math.floor(bytes / (1024 * 1024))} MiB`;
+        if (oversized) {
+          throw new Error(`${oversized.name} exceeds the ${mib(quota.limits.max_file_bytes)} per-file limit.`);
+        }
+        if (allowed.length > quota.remaining.file_count) {
+          throw new Error(`Only ${quota.remaining.file_count} upload slot(s) remain for this account.`);
+        }
+        if (requestedBytes > quota.remaining.total_bytes) {
+          throw new Error(`This upload exceeds the ${mib(quota.remaining.total_bytes)} remaining account storage.`);
+        }
+
         const session = await ensureSession();
         const sessionId = session?.id || null;
 
@@ -275,6 +292,7 @@ export function useFolderUpload(ctx: UseFolderUploadContext): UseFolderUpload {
             originalName: file.name,
             uploadedBy: user.id,
             parentFolderId: folder.id,
+            sizeBytes: file.size,
             status: 'UPLOADED',
           });
         }

@@ -26,6 +26,7 @@ from router import (
     sessions,
     webSockets,
     authService,
+    google_auth,
     data,
     data_collection,
     invitations, 
@@ -117,6 +118,7 @@ app.include_router(files.router)
 app.include_router(sessions.router)
 app.include_router(webSockets.router)
 app.include_router(authService.router)
+app.include_router(google_auth.router)
 app.include_router(data.router)
 app.include_router(data_collection.router)
 app.include_router(invitations.router)
@@ -148,7 +150,9 @@ PUBLIC_ENDPOINTS = [
     "/api/v1/invitations/accept",
     "/api/v1/auth/forgot-password",
     "/api/v1/auth/reset-password",
-    "/api/v1/auth/verify-email"
+    "/api/v1/auth/verify-email",
+    "/api/v1/auth/google/config",
+    "/api/v1/auth/google"
 ]
 
 # ---------------------------------------------------------------------------

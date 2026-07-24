@@ -182,7 +182,7 @@ PREPARE_TOOLS = [
     ToolSpec(
         name="prepare_build_transform",
         title="Build the prepared table",
-        description="Create the session's next prepared table from a validated SELECT. Source tables are never modified.",
+        description="Create the account's single allowed prepared table from a validated SELECT. Source tables are never modified.",
         parameters=_obj(
             {
                 "folder_id": FOLDER,

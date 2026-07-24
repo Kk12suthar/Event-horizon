@@ -159,14 +159,7 @@ async def signup(request: Request, payload: SignupRequest, db: Session = Depends
                 detail=error_msg
             )
         
-        # Check if personal email trying to use pro plan
-        if is_personal_email(payload.email) and payload.plan == "pro":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Pro plan is only available for corporate email addresses. Personal email accounts can only use the Demo plan."
-            )
-        
-        # Force demo plan for personal emails
+        # Personal accounts are accepted, but are always placed on the demo plan.
         plan = "demo" if is_personal_email(payload.email) else payload.plan
         print(f"Final plan: {plan}")
         

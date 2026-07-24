@@ -81,7 +81,7 @@ export function SignUp() {
             placeholder="Your full name"
             value={name}
             onChange={(e) => { setName(e.target.value); setErrors(p => ({ ...p, name: undefined })); }}
-            className={`mt-1.5 h-11 bg-[#161616] border-[#2A2A2A] text-white placeholder:text-[#71717A] focus:border-[#c16e43] ${errors.name ? 'border-[#F97066]' : ''}`}
+            className={`mt-1.5 h-11 bg-[#101010] border-[#242424] text-white placeholder:text-[#71717A] focus:border-[#c16e43] ${errors.name ? 'border-[#F97066]' : ''}`}
           />
           {errors.name && <p className="mt-1 text-xs text-[#F97066]">{errors.name}</p>}
         </div>
@@ -94,7 +94,7 @@ export function SignUp() {
             placeholder="you@company.com"
             value={email}
             onChange={(e) => { setEmail(e.target.value); setErrors(p => ({ ...p, email: undefined })); }}
-            className={`mt-1.5 h-11 bg-[#161616] border-[#2A2A2A] text-white placeholder:text-[#71717A] focus:border-[#c16e43] ${errors.email ? 'border-[#F97066]' : ''}`}
+            className={`mt-1.5 h-11 bg-[#101010] border-[#242424] text-white placeholder:text-[#71717A] focus:border-[#c16e43] ${errors.email ? 'border-[#F97066]' : ''}`}
           />
           {errors.email && <p className="mt-1 text-xs text-[#F97066]">{errors.email}</p>}
         </div>
@@ -108,7 +108,7 @@ export function SignUp() {
               placeholder="Create a password"
               value={password}
               onChange={(e) => { setPassword(e.target.value); setErrors(p => ({ ...p, password: undefined })); }}
-              className={`h-11 bg-[#161616] border-[#2A2A2A] text-white placeholder:text-[#71717A] focus:border-[#c16e43] pr-10 ${errors.password ? 'border-[#F97066]' : ''}`}
+              className={`h-11 bg-[#101010] border-[#242424] text-white placeholder:text-[#71717A] focus:border-[#c16e43] pr-10 ${errors.password ? 'border-[#F97066]' : ''}`}
             />
             <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#71717A] hover:text-white">
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -126,7 +126,7 @@ export function SignUp() {
               placeholder="Confirm your password"
               value={confirmPassword}
               onChange={(e) => { setConfirmPassword(e.target.value); setErrors(p => ({ ...p, confirmPassword: undefined })); }}
-              className={`h-11 bg-[#161616] border-[#2A2A2A] text-white placeholder:text-[#71717A] focus:border-[#c16e43] pr-10 ${errors.confirmPassword ? 'border-[#F97066]' : ''}`}
+              className={`h-11 bg-[#101010] border-[#242424] text-white placeholder:text-[#71717A] focus:border-[#c16e43] pr-10 ${errors.confirmPassword ? 'border-[#F97066]' : ''}`}
             />
             <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#71717A] hover:text-white">
               {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

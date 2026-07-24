@@ -1,0 +1,142 @@
+name: eventhorizon
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "5"
+
+services:
+  postgres:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    shm_size: 512mb
+    command:
+      - postgres
+      - -c
+      - max_connections=80
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - effective_cache_size=2GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=128MB
+      - -c
+      - wal_compression=on
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_UPLOAD_DBNAME:-postgres}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./deploy/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_UPLOAD_DBNAME:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    mem_limit: 2g
+    cpus: 1.5
+    logging: *default-logging
+
+  backend:
+    image: ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REPOSITORY}/backend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      ENVIRONMENT: production
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      AGENT_SERVER_URL: http://agent:8010
+      DB_POOL_SIZE: 5
+      DB_POOL_MAX_OVERFLOW: 5
+      DB_POOL_RECYCLE: 1800
+      ENABLE_DEV_GMAIL_SIGNIN: "false"
+      AUTH_DISABLED: "false"
+      PORTAL_AUTH_ENFORCED: "true"
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      UPLOAD_STORAGE_PATH: /app/backend/uploads
+      UPLOAD_PLANNED_USERS: ${UPLOAD_PLANNED_USERS:-50}
+      UPLOAD_MAX_FILES_PER_USER: ${UPLOAD_MAX_FILES_PER_USER:-3}
+      UPLOAD_FILE_SIZE_CAP_BYTES: ${UPLOAD_FILE_SIZE_CAP_BYTES:-62914560}
+      UPLOAD_USER_QUOTA_CAP_BYTES: ${UPLOAD_USER_QUOTA_CAP_BYTES:-188743680}
+      UPLOAD_STORAGE_EXPANSION_FACTOR: ${UPLOAD_STORAGE_EXPANSION_FACTOR:-5}
+      UPLOAD_STORAGE_RESERVE_PERCENT: ${UPLOAD_STORAGE_RESERVE_PERCENT:-25}
+      UPLOAD_MIN_FREE_BYTES: ${UPLOAD_MIN_FREE_BYTES:-16106127360}
+    volumes:
+      - ./data/uploads:/app/backend/uploads
+      - ./data/thumbnails:/app/backend/thumbnails
+      - ./data/upload-states:/app/backend/upload_states
+      - ./secrets/firebase-credentials.json:/app/backend/firebase-credentials.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/api/health/ready', timeout=4)"]
+      interval: 15s
+      timeout: 6s
+      retries: 8
+      start_period: 60s
+    stop_grace_period: 30s
+    mem_limit: 3g
+    cpus: 1.5
+    logging: *default-logging
+
+  agent:
+    image: ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REPOSITORY}/agent:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      ENVIRONMENT: production
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      AGENT_ARTIFACT_ROOT: /app/agent-server/artifacts
+      AGENT_EXPOSE_ERRORS: "false"
+      MODEL_CONFIG_MODE: user
+      MAX_PREPARED_TABLES_PER_USER: ${MAX_PREPARED_TABLES_PER_USER:-1}
+    volumes:
+      - ./data/artifacts:/app/agent-server/artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/health', timeout=4)"]
+      interval: 15s
+      timeout: 6s
+      retries: 8
+      start_period: 60s
+    stop_grace_period: 60s
+    mem_limit: 1536m
+    cpus: 1.25
+    logging: *default-logging
+
+  web:
+    image: ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${ARTIFACT_REPOSITORY}/web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./data/caddy-data:/data
+      - ./data/caddy-config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+      agent:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "80"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+    mem_limit: 256m
+    cpus: 0.5
+    logging: *default-logging

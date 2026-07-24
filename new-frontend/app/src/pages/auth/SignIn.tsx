@@ -1,16 +1,17 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, Loader2, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { isDevGmailSignInEnabled } from '@/lib/api';
 
 export function SignIn() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const { error } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -44,6 +45,19 @@ export function SignIn() {
     }
   };
 
+  const handleGoogleCredential = useCallback(async (credential: string, nonce: string) => {
+    try {
+      const success = await loginWithGoogle(credential, nonce);
+      if (success) navigate('/app/project');
+    } catch (err) {
+      error('Google Sign In Failed', err instanceof Error ? err.message : 'Could not sign in with Google');
+    }
+  }, [error, loginWithGoogle, navigate]);
+
+  const handleGoogleError = useCallback((message: string) => {
+    error('Google Sign In', message);
+  }, [error]);
+
   const handleDevGmailSignIn = async () => {
     const devEmail = 'tester@gmail.com';
     const devPassword = 'local-dev-password';
@@ -68,7 +82,16 @@ export function SignIn() {
       <h1 className="text-2xl font-bold text-white">Welcome back</h1>
       <p className="mt-2 text-sm text-[#A1A1AA]">Sign in to your workspace</p>
 
-      <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+      <div className="mt-8 space-y-4">
+        <GoogleSignInButton disabled={isLoading} onCredential={handleGoogleCredential} onError={handleGoogleError} />
+        <div className="flex items-center gap-3 text-xs text-[#71717A]">
+          <span className="h-px flex-1 bg-[#242424]" />
+          <span>or continue with email</span>
+          <span className="h-px flex-1 bg-[#242424]" />
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="mt-5 space-y-5">
         <div>
           <Label htmlFor="email" className="text-xs font-medium text-[#A1A1AA] uppercase tracking-wider">
             Email
@@ -79,7 +102,7 @@ export function SignIn() {
             placeholder="you@company.com"
             value={email}
             onChange={(e) => { setEmail(e.target.value); setErrors(prev => ({ ...prev, email: undefined })); }}
-            className={`mt-1.5 h-11 bg-[#161616] border-[#2A2A2A] text-white placeholder:text-[#71717A] focus:border-[#c16e43] focus:ring-[#c16e43]/20 ${errors.email ? 'border-[#F97066]' : ''}`}
+            className={`mt-1.5 h-11 bg-[#101010] border-[#242424] text-white placeholder:text-[#71717A] focus:border-[#c16e43] focus:ring-[#c16e43]/20 ${errors.email ? 'border-[#F97066]' : ''}`}
           />
           {errors.email && <p className="mt-1 text-xs text-[#F97066]">{errors.email}</p>}
         </div>
@@ -100,7 +123,7 @@ export function SignIn() {
               placeholder="Enter your password"
               value={password}
               onChange={(e) => { setPassword(e.target.value); setErrors(prev => ({ ...prev, password: undefined })); }}
-              className={`h-11 bg-[#161616] border-[#2A2A2A] text-white placeholder:text-[#71717A] focus:border-[#c16e43] focus:ring-[#c16e43]/20 pr-10 ${errors.password ? 'border-[#F97066]' : ''}`}
+              className={`h-11 bg-[#101010] border-[#242424] text-white placeholder:text-[#71717A] focus:border-[#c16e43] focus:ring-[#c16e43]/20 pr-10 ${errors.password ? 'border-[#F97066]' : ''}`}
             />
             <button
               type="button"
@@ -129,16 +152,16 @@ export function SignIn() {
         {devGmailSignInEnabled && (
           <div className="space-y-3">
             <div className="flex items-center gap-3 text-xs text-[#71717A]">
-              <span className="h-px flex-1 bg-[#2A2A2A]" />
+              <span className="h-px flex-1 bg-[#242424]" />
               <span>Local testing</span>
-              <span className="h-px flex-1 bg-[#2A2A2A]" />
+              <span className="h-px flex-1 bg-[#242424]" />
             </div>
             <Button
               type="button"
               variant="outline"
               disabled={isLoading}
               onClick={handleDevGmailSignIn}
-              className="w-full h-11 border-[#2A2A2A] bg-[#161616] text-white hover:bg-[#1E1E1E] hover:text-white"
+              className="w-full h-11 border-[#242424] bg-[#101010] text-white hover:bg-[#181818] hover:text-white"
             >
               <Mail className="w-4 h-4" />
               Continue with Gmail dev account

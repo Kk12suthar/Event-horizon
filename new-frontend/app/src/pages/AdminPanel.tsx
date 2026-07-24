@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Progress } from '@/components/ui/progress';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { fetchAgentModelConfig, updateAgentModelConfig, type AgentModelConfig } from '@/lib/api';
-import { users, license, apiKeys } from '@/data/mockData';
+import { users, license } from '@/data/mockData';
 import type { User, UserRole } from '@/types';
 
 type AdminTab = 'users' | 'access' | 'licenses' | 'model' | 'projects';
@@ -27,8 +27,8 @@ export function AdminPanel() {
 
   return (
     <div className="flex flex-col md:flex-row h-full">
-      <div className="w-full md:w-[200px] flex-shrink-0 bg-[#161616] border-b md:border-b-0 md:border-r border-[#2A2A2A]">
-        <div className="p-4 border-b border-[#2A2A2A] hidden md:block">
+      <div className="w-full md:w-[200px] flex-shrink-0 bg-[#101010] border-b md:border-b-0 md:border-r border-[#242424]">
+        <div className="p-4 border-b border-[#242424] hidden md:block">
           <h2 className="text-xs font-semibold text-white uppercase tracking-wider">Admin</h2>
         </div>
         <nav className="p-2 flex md:flex-col gap-1 overflow-x-auto md:space-y-1">
@@ -38,7 +38,7 @@ export function AdminPanel() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex-shrink-0 md:w-full flex items-center gap-2 md:gap-3 h-10 px-3 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
                 activeTab === tab.id
-                  ? 'text-white bg-[#c16e43]/10 border md:border-0 md:border-l-2 border-[#c16e43]'
+                  ? 'text-white bg-[#181818] border md:border-0 md:border-l-2 border-[#c16e43]'
                   : 'text-[#A1A1AA] hover:bg-[#1C1C1C] hover:text-white'
               }`}
             >
@@ -94,7 +94,7 @@ function UsersTab() {
       <div className="flex items-center justify-between mb-6">
         <div className="relative w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717A]" />
-          <Input placeholder="Search users..." className="pl-9 h-9 bg-[#161616] border-[#2A2A2A] text-white placeholder:text-[#71717A]" />
+          <Input placeholder="Search users..." className="pl-9 h-9 bg-[#101010] border-[#242424] text-white placeholder:text-[#71717A]" />
         </div>
         <Button onClick={() => setShowInvite(true)} className="h-9 bg-[#c16e43] text-[#0A0A0A] hover:bg-[#d08a5e]">
           <Plus className="w-4 h-4 mr-1" />
@@ -102,10 +102,10 @@ function UsersTab() {
         </Button>
       </div>
 
-      <div className="bg-[#161616] border border-[#2A2A2A] rounded-xl overflow-x-auto">
+      <div className="bg-[#101010] border border-[#242424] rounded-xl overflow-x-auto">
         <table className="w-full min-w-[640px]">
           <thead>
-            <tr className="border-b border-[#2A2A2A]">
+            <tr className="border-b border-[#242424]">
               <th className="text-left px-4 py-3 text-xs font-medium text-[#A1A1AA] uppercase tracking-wider">User</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-[#A1A1AA] uppercase tracking-wider">Role</th>
               <th className="text-left px-4 py-3 text-xs font-medium text-[#A1A1AA] uppercase tracking-wider">Status</th>
@@ -114,7 +114,7 @@ function UsersTab() {
           </thead>
           <tbody>
             {users.map(user => (
-              <tr key={user.id} className="border-b border-[#2A2A2A] last:border-0 hover:bg-[#1C1C1C] transition-colors">
+              <tr key={user.id} className="border-b border-[#242424] last:border-0 hover:bg-[#1C1C1C] transition-colors">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-[#c16e43] flex items-center justify-center text-white text-xs font-semibold">
@@ -160,23 +160,23 @@ function UsersTab() {
       </div>
 
       <Dialog open={showInvite} onOpenChange={setShowInvite}>
-        <DialogContent className="bg-[#161616] border-[#2A2A2A] max-w-md">
+        <DialogContent className="bg-[#101010] border-[#242424] max-w-md">
           <DialogHeader><DialogTitle className="text-lg font-semibold text-white">Invite New User</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
             <div>
               <label className="text-xs text-[#A1A1AA] uppercase">Email Address</label>
-              <Input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="user@company.com" className="mt-1 bg-[#000000] border-[#2A2A2A] text-white" />
+              <Input value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} placeholder="user@company.com" className="mt-1 bg-[#000000] border-[#242424] text-white" />
             </div>
             <div>
               <label className="text-xs text-[#A1A1AA] uppercase">Role</label>
-              <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as UserRole)} className="mt-1 w-full h-10 bg-[#000000] border border-[#2A2A2A] rounded-lg px-3 text-white text-sm">
+              <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value as UserRole)} className="mt-1 w-full h-10 bg-[#000000] border border-[#242424] rounded-lg px-3 text-white text-sm">
                 <option value="Viewer">Viewer - Read only access</option>
                 <option value="Analyst">Analyst - Can modify data</option>
                 <option value="Admin">Admin - Full system access</option>
               </select>
             </div>
             <div className="flex justify-end gap-3 pt-2">
-              <Button variant="outline" onClick={() => setShowInvite(false)} className="border-[#2A2A2A] text-[#A1A1AA] hover:bg-[#1C1C1C]">Cancel</Button>
+              <Button variant="outline" onClick={() => setShowInvite(false)} className="border-[#242424] text-[#A1A1AA] hover:bg-[#1C1C1C]">Cancel</Button>
               <Button onClick={handleInvite} disabled={!inviteEmail.trim() || isSubmitting} className="bg-[#c16e43] text-[#0A0A0A] hover:bg-[#d08a5e]">
                 {isSubmitting ? 'Sending...' : 'Send Invitation'}
               </Button>
@@ -186,23 +186,23 @@ function UsersTab() {
       </Dialog>
 
       <Dialog open={!!showEdit} onOpenChange={() => setShowEdit(null)}>
-        <DialogContent className="bg-[#161616] border-[#2A2A2A] max-w-md">
+        <DialogContent className="bg-[#101010] border-[#242424] max-w-md">
           <DialogHeader><DialogTitle className="text-lg font-semibold text-white">Edit User</DialogTitle></DialogHeader>
           <div className="space-y-4 mt-2">
             <div>
               <label className="text-xs text-[#A1A1AA] uppercase">Full Name</label>
-              <Input value={showEdit?.name || ''} disabled className="mt-1 bg-[#000000] border-[#2A2A2A] text-[#71717A] opacity-50" />
+              <Input value={showEdit?.name || ''} disabled className="mt-1 bg-[#000000] border-[#242424] text-[#71717A] opacity-50" />
             </div>
             <div>
               <label className="text-xs text-[#A1A1AA] uppercase">Role</label>
-              <select value={editRole} onChange={(e) => setEditRole(e.target.value as UserRole)} className="mt-1 w-full h-10 bg-[#000000] border border-[#2A2A2A] rounded-lg px-3 text-white text-sm">
+              <select value={editRole} onChange={(e) => setEditRole(e.target.value as UserRole)} className="mt-1 w-full h-10 bg-[#000000] border border-[#242424] rounded-lg px-3 text-white text-sm">
                 <option value="Viewer">Viewer</option>
                 <option value="Analyst">Analyst</option>
                 <option value="Admin">Admin</option>
               </select>
             </div>
             <div className="flex justify-end gap-3 pt-2">
-              <Button variant="outline" onClick={() => setShowEdit(null)} className="border-[#2A2A2A] text-[#A1A1AA] hover:bg-[#1C1C1C]">Cancel</Button>
+              <Button variant="outline" onClick={() => setShowEdit(null)} className="border-[#242424] text-[#A1A1AA] hover:bg-[#1C1C1C]">Cancel</Button>
               <Button onClick={handleEdit} disabled={isSubmitting} className="bg-[#c16e43] text-[#0A0A0A] hover:bg-[#d08a5e]">
                 {isSubmitting ? 'Updating...' : 'Save Changes'}
               </Button>
@@ -228,7 +228,7 @@ function AccessTab() {
 
   return (
     <div>
-      <div className="flex gap-1 mb-6 bg-[#161616] border border-[#2A2A2A] rounded-lg p-1 w-fit">
+      <div className="flex gap-1 mb-6 bg-[#101010] border border-[#242424] rounded-lg p-1 w-fit">
         {subTabs.map(tab => (
           <button key={tab.id} onClick={() => setActiveSubTab(tab.id)} className={`px-4 py-2 rounded-md text-xs font-medium transition-colors ${activeSubTab === tab.id ? 'bg-[#c16e43] text-[#0A0A0A]' : 'text-[#A1A1AA] hover:text-white'}`}>
             {tab.label}
@@ -240,7 +240,7 @@ function AccessTab() {
         <div className="space-y-4">
           <h3 className="text-sm font-semibold text-white">Users with Access</h3>
           {users.slice(0, 3).map(user => (
-            <div key={user.id} className="bg-[#161616] border border-[#2A2A2A] rounded-xl p-4">
+            <div key={user.id} className="bg-[#101010] border border-[#242424] rounded-xl p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-[#c16e43] flex items-center justify-center text-white text-xs font-semibold">
@@ -263,22 +263,22 @@ function AccessTab() {
       )}
 
       {activeSubTab === 'grant' && (
-        <div className="max-w-lg bg-[#161616] border border-[#2A2A2A] rounded-xl p-6 space-y-4">
+        <div className="max-w-lg bg-[#101010] border border-[#242424] rounded-xl p-6 space-y-4">
           <div>
             <label className="text-xs text-[#A1A1AA] uppercase">Select User</label>
-            <select className="mt-1 w-full h-10 bg-[#000000] border border-[#2A2A2A] rounded-lg px-3 text-white text-sm"><option>Choose a user...</option>{users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}</select>
+            <select className="mt-1 w-full h-10 bg-[#000000] border border-[#242424] rounded-lg px-3 text-white text-sm"><option>Choose a user...</option>{users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.email})</option>)}</select>
           </div>
           <div>
             <label className="text-xs text-[#A1A1AA] uppercase">Select Project</label>
-            <select className="mt-1 w-full h-10 bg-[#000000] border border-[#2A2A2A] rounded-lg px-3 text-white text-sm"><option>Choose a project...</option></select>
+            <select className="mt-1 w-full h-10 bg-[#000000] border border-[#242424] rounded-lg px-3 text-white text-sm"><option>Choose a project...</option></select>
           </div>
           <div>
             <label className="text-xs text-[#A1A1AA] uppercase">Permission Level</label>
-            <select className="mt-1 w-full h-10 bg-[#000000] border border-[#2A2A2A] rounded-lg px-3 text-white text-sm"><option>Project</option><option>Partial</option><option>Folder</option></select>
+            <select className="mt-1 w-full h-10 bg-[#000000] border border-[#242424] rounded-lg px-3 text-white text-sm"><option>Project</option><option>Partial</option><option>Folder</option></select>
           </div>
           <div>
             <label className="text-xs text-[#A1A1AA] uppercase">Role</label>
-            <select className="mt-1 w-full h-10 bg-[#000000] border border-[#2A2A2A] rounded-lg px-3 text-white text-sm"><option value="Viewer">Viewer</option><option value="Analyst">Analyst</option></select>
+            <select className="mt-1 w-full h-10 bg-[#000000] border border-[#242424] rounded-lg px-3 text-white text-sm"><option value="Viewer">Viewer</option><option value="Analyst">Analyst</option></select>
           </div>
           <Button className="w-full bg-[#c16e43] text-[#0A0A0A] hover:bg-[#d08a5e]">Grant Access</Button>
         </div>
@@ -289,15 +289,15 @@ function AccessTab() {
       )}
 
       {activeSubTab === 'revoke' && (
-        <div className="max-w-lg bg-[#161616] border border-[#2A2A2A] rounded-xl p-6 space-y-4">
+        <div className="max-w-lg bg-[#101010] border border-[#242424] rounded-xl p-6 space-y-4">
           <div className="p-4 bg-[#F97066]/10 border border-[#F97066]/20 rounded-lg"><p className="text-sm text-[#F97066]">Warning: Revoking access will immediately remove the user&apos;s ability to view or interact with the selected project.</p></div>
           <div>
             <label className="text-xs text-[#A1A1AA] uppercase">Select Project</label>
-            <select className="mt-1 w-full h-10 bg-[#000000] border border-[#2A2A2A] rounded-lg px-3 text-white text-sm"><option>Choose a project...</option></select>
+            <select className="mt-1 w-full h-10 bg-[#000000] border border-[#242424] rounded-lg px-3 text-white text-sm"><option>Choose a project...</option></select>
           </div>
           <div>
             <label className="text-xs text-[#A1A1AA] uppercase">Select User</label>
-            <select className="mt-1 w-full h-10 bg-[#000000] border border-[#2A2A2A] rounded-lg px-3 text-white text-sm"><option>Choose a user...</option></select>
+            <select className="mt-1 w-full h-10 bg-[#000000] border border-[#242424] rounded-lg px-3 text-white text-sm"><option>Choose a user...</option></select>
           </div>
           <Button className="w-full bg-[#F97066] text-white hover:bg-[#E85C50]">Revoke Access</Button>
         </div>
@@ -311,16 +311,16 @@ function LicensesTab() {
 
   return (
     <div>
-      <div className="flex gap-1 mb-6 bg-[#161616] border border-[#2A2A2A] rounded-lg p-1 w-fit">
+      <div className="flex gap-1 mb-6 bg-[#101010] border border-[#242424] rounded-lg p-1 w-fit">
         <button onClick={() => setActiveSubTab('view')} className={`px-4 py-2 rounded-md text-xs font-medium ${activeSubTab === 'view' ? 'bg-[#c16e43] text-[#0A0A0A]' : 'text-[#A1A1AA]'}`}>View License Info</button>
         <button onClick={() => setActiveSubTab('manage')} className={`px-4 py-2 rounded-md text-xs font-medium ${activeSubTab === 'manage' ? 'bg-[#c16e43] text-[#0A0A0A]' : 'text-[#A1A1AA]'}`}>Manage License</button>
       </div>
 
       {activeSubTab === 'view' ? (
         <div className="space-y-6">
-          <div className="bg-[#161616] border border-[#2A2A2A] rounded-xl p-6">
+          <div className="bg-[#101010] border border-[#242424] rounded-xl p-6">
             <h3 className="text-sm font-semibold text-white mb-4">License Key</h3>
-            <code className="block bg-[#000000] border border-[#2A2A2A] rounded-lg px-4 py-3 text-sm font-mono text-[#E4E4E7]">{license.key}</code>
+            <code className="block bg-[#000000] border border-[#242424] rounded-lg px-4 py-3 text-sm font-mono text-[#E4E4E7]">{license.key}</code>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
               <div><p className="text-xs text-[#71717A]">License Type</p><p className="text-sm font-medium text-white">{license.type}</p></div>
               <div><p className="text-xs text-[#71717A]">Status</p><span className="text-xs px-2 py-0.5 bg-[#22C55E]/10 text-[#22C55E] rounded-full font-medium">{license.status}</span></div>
@@ -333,10 +333,10 @@ function LicensesTab() {
             <h3 className="text-sm font-semibold text-white mb-4">User Limits</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {Object.entries(license.userLimits).map(([role, limits]) => (
-                <div key={role} className="bg-[#161616] border border-[#2A2A2A] rounded-xl p-4">
+                <div key={role} className="bg-[#101010] border border-[#242424] rounded-xl p-4">
                   <p className="text-xs text-[#A1A1AA] capitalize">{role}s</p>
                   <p className="text-lg font-bold text-white mt-1">{limits.used} / {limits.total}</p>
-                  <Progress value={(limits.used / limits.total) * 100} className="h-1.5 mt-2 bg-[#2A2A2A]" />
+                  <Progress value={(limits.used / limits.total) * 100} className="h-1.5 mt-2 bg-[#242424]" />
                 </div>
               ))}
             </div>
@@ -345,23 +345,23 @@ function LicensesTab() {
           <div>
             <h3 className="text-sm font-semibold text-white mb-4">Resource Limits</h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-[#161616] border border-[#2A2A2A] rounded-xl p-4"><p className="text-xs text-[#A1A1AA]">Total Projects</p><p className="text-lg font-bold text-white">{license.resourceLimits.totalProjects}</p></div>
-              <div className="bg-[#161616] border border-[#2A2A2A] rounded-xl p-4"><p className="text-xs text-[#A1A1AA]">Active Projects</p><p className="text-lg font-bold text-white">{license.resourceLimits.activeProjects}</p></div>
-              <div className="bg-[#161616] border border-[#2A2A2A] rounded-xl p-4"><p className="text-xs text-[#A1A1AA]">Transformations</p><p className="text-lg font-bold text-white">{license.resourceLimits.transformations}</p></div>
+              <div className="bg-[#101010] border border-[#242424] rounded-xl p-4"><p className="text-xs text-[#A1A1AA]">Total Projects</p><p className="text-lg font-bold text-white">{license.resourceLimits.totalProjects}</p></div>
+              <div className="bg-[#101010] border border-[#242424] rounded-xl p-4"><p className="text-xs text-[#A1A1AA]">Active Projects</p><p className="text-lg font-bold text-white">{license.resourceLimits.activeProjects}</p></div>
+              <div className="bg-[#101010] border border-[#242424] rounded-xl p-4"><p className="text-xs text-[#A1A1AA]">Transformations</p><p className="text-lg font-bold text-white">{license.resourceLimits.transformations}</p></div>
             </div>
           </div>
         </div>
       ) : (
-        <div className="max-w-lg bg-[#161616] border border-[#2A2A2A] rounded-xl p-6 space-y-6">
+        <div className="max-w-lg bg-[#101010] border border-[#242424] rounded-xl p-6 space-y-6">
           <div>
             <label className="text-xs text-[#A1A1AA] uppercase">New License Key</label>
-            <Input placeholder="Enter license key" className="mt-1 bg-[#000000] border-[#2A2A2A] text-white" />
+            <Input placeholder="Enter license key" className="mt-1 bg-[#000000] border-[#242424] text-white" />
             <p className="text-xs text-[#F59E0B] mt-2">Warning: Updating the license may require a restart.</p>
             <Button className="mt-3 bg-[#c16e43] text-[#0A0A0A] hover:bg-[#d08a5e]">Update License</Button>
           </div>
-          <div className="border-t border-[#2A2A2A] pt-6">
+          <div className="border-t border-[#242424] pt-6">
             <label className="text-xs text-[#A1A1AA] uppercase">Upload License File</label>
-            <Input type="file" accept=".lic,.key" className="mt-1 bg-[#000000] border-[#2A2A2A] text-white" />
+            <Input type="file" accept=".lic,.key" className="mt-1 bg-[#000000] border-[#242424] text-white" />
             <Button className="mt-3 bg-[#c16e43] text-[#0A0A0A] hover:bg-[#d08a5e]">Upload License</Button>
           </div>
         </div>
@@ -370,7 +370,7 @@ function LicensesTab() {
   );
 }
 
-function ModelTab() {
+export function ModelTab() {
   const [activeSubTab, setActiveSubTab] = useState<'runtime' | 'keys' | 'config'>('runtime');
   const [provider, setProvider] = useState('openrouter');
   const [model, setModel] = useState('openai/gpt-4o');
@@ -389,7 +389,7 @@ function ModelTab() {
     { id: 'openai', label: 'OpenAI Direct', keyEnv: 'OPENAI_API_KEY', helper: 'Use for direct OpenAI model calls.' },
     { id: 'anthropic', label: 'Anthropic Direct', keyEnv: 'ANTHROPIC_API_KEY', helper: 'Use for direct Claude model calls.' },
     { id: 'google', label: 'Google Gemini Direct', keyEnv: 'GOOGLE_API_KEY', helper: 'Use for direct Gemini (AI Studio) model calls.' },
-    { id: 'vertex', label: 'Google Vertex AI', keyEnv: 'VERTEX_API_KEY', helper: 'Vertex AI. Leave key blank to use gcloud ADC, or paste a Vertex Express (AQ...) key.' },
+    { id: 'vertex', label: 'Google Vertex AI', keyEnv: 'VERTEX_API_KEY', helper: 'Use your own Vertex Express API key for this account.' },
   ];
 
   const openRouterExamples = ['openai/gpt-4o', '~openai/gpt-latest', 'anthropic/claude-sonnet-4.5', 'google/gemini-2.5-pro', 'meta-llama/llama-3.3-70b-instruct'];
@@ -404,6 +404,7 @@ function ModelTab() {
   const resolvedPreview = provider === 'openrouter' && model && !model.startsWith('openrouter/') ? `openrouter/${model}` : model;
   const activeRuntimeModel = runtimeConfig?.resolved_model || resolvedPreview || 'Not configured';
   const activeRuntimeProvider = runtimeConfig?.provider || provider;
+  const needsApiKey = !runtimeConfig?.key_configured || runtimeConfig.provider !== provider;
 
   useEffect(() => {
     let mounted = true;
@@ -445,7 +446,7 @@ function ModelTab() {
       });
       setRuntimeConfig(updated);
       setApiKey('');
-      setStatusMessage('Runtime model configuration updated. New chat requests will use this provider and model.');
+      setStatusMessage('Your model access was updated. New requests will use this provider and model.');
     } catch (error) {
       setStatusMessage(error instanceof Error ? error.message : 'Failed to update model configuration.');
     } finally {
@@ -455,12 +456,12 @@ function ModelTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#2E2E2E] bg-[#151515] p-5">
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#262626] bg-[#0D0D0D] p-5">
         <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-[#8C8C8C]">AI Runtime</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-[#8C8C8C]">Personal model access</p>
           <h2 className="mt-1 text-xl font-semibold text-white">Model and API key setup</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[#B8B8B8]">
-            OpenRouter is the recommended path: enter any OpenRouter model slug and one OpenRouter key. The server calls LiteLLM with the required <span className="font-mono text-[#E9B872]">openrouter/</span> prefix automatically.
+            Choose a provider and model, then add your own API key. The key is encrypted for your account and is never shared with another user. Deployment environment keys are not available to production users.
           </p>
         </div>
         <div className={`rounded-full px-3 py-1 text-xs font-semibold ${runtimeConfig?.key_configured ? 'bg-[#22C55E]/10 text-[#22C55E]' : 'bg-[#E9B872]/10 text-[#E9B872]'}`}>
@@ -468,49 +469,50 @@ function ModelTab() {
         </div>
       </div>
 
-      <div className="flex gap-1 rounded-xl border border-[#2E2E2E] bg-[#151515] p-1 w-fit">
-        <button onClick={() => setActiveSubTab('runtime')} className={`px-4 py-2 rounded-lg text-xs font-medium ${activeSubTab === 'runtime' ? 'bg-[#c16e43] text-[#0A0A0A]' : 'text-[#A1A1AA] hover:text-white'}`}>Runtime Setup</button>
+      <div className="flex gap-1 rounded-xl border border-[#262626] bg-[#0D0D0D] p-1 w-fit">
+        <button onClick={() => setActiveSubTab('runtime')} className={`px-4 py-2 rounded-lg text-xs font-medium ${activeSubTab === 'runtime' ? 'bg-[#c16e43] text-[#0A0A0A]' : 'text-[#A1A1AA] hover:text-white'}`}>Model Setup</button>
         <button onClick={() => setActiveSubTab('keys')} className={`px-4 py-2 rounded-lg text-xs font-medium ${activeSubTab === 'keys' ? 'bg-[#c16e43] text-[#0A0A0A]' : 'text-[#A1A1AA] hover:text-white'}`}>Provider Keys</button>
         <button onClick={() => setActiveSubTab('config')} className={`px-4 py-2 rounded-lg text-xs font-medium ${activeSubTab === 'config' ? 'bg-[#c16e43] text-[#0A0A0A]' : 'text-[#A1A1AA] hover:text-white'}`}>Agent Assignment</button>
       </div>
 
       {activeSubTab === 'runtime' && (
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="rounded-2xl border border-[#2E2E2E] bg-[#151515] p-6">
+          <div className="rounded-2xl border border-[#262626] bg-[#0D0D0D] p-6">
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <label className="text-xs uppercase tracking-wider text-[#8C8C8C]">Provider</label>
-                <select value={provider} onChange={(event) => setProvider(event.target.value)} className="mt-1 h-10 w-full rounded-xl border border-[#2E2E2E] bg-[#000000] px-3 text-sm text-white outline-none">
+                <select value={provider} onChange={(event) => setProvider(event.target.value)} className="mt-1 h-10 w-full rounded-xl border border-[#262626] bg-[#000000] px-3 text-sm text-white outline-none">
                   {providers.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
                 </select>
                 <p className="mt-2 text-xs leading-5 text-[#8C8C8C]">{selectedProvider.helper}</p>
               </div>
               <div>
                 <label className="text-xs uppercase tracking-wider text-[#8C8C8C]">Model slug</label>
-                <Input value={model} onChange={(event) => setModel(event.target.value)} placeholder="openai/gpt-4o" className="mt-1 bg-[#000000] border-[#2E2E2E] text-white" />
+                <Input value={model} onChange={(event) => setModel(event.target.value)} placeholder="openai/gpt-4o" className="mt-1 bg-[#000000] border-[#262626] text-white" />
                 <p className="mt-2 text-xs leading-5 text-[#8C8C8C]">Runtime value: <span className="font-mono text-[#E9B872]">{resolvedPreview || 'not set'}</span></p>
               </div>
               <div>
-                <label className="text-xs uppercase tracking-wider text-[#8C8C8C]">{selectedProvider.keyEnv}</label>
-                <Input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder={runtimeConfig?.key_configured ? 'Leave blank to keep current key' : 'Paste API key'} className="mt-1 bg-[#000000] border-[#2E2E2E] text-white" />
+                <label className="text-xs uppercase tracking-wider text-[#8C8C8C]">{selectedProvider.label} API key</label>
+                <Input type="password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder={runtimeConfig?.key_configured ? 'Leave blank to keep current key' : 'Paste API key'} className="mt-1 bg-[#000000] border-[#262626] text-white" />
+                {needsApiKey && <p className="mt-2 text-xs leading-5 text-[#E9B872]">A key is required the first time you use this provider.</p>}
               </div>
               <div>
                 <label className="text-xs uppercase tracking-wider text-[#8C8C8C]">Temperature</label>
-                <Input type="number" min="0" max="2" step="0.1" value={temperature} onChange={(event) => setTemperature(Number(event.target.value))} className="mt-1 bg-[#000000] border-[#2E2E2E] text-white" />
+                <Input type="number" min="0" max="2" step="0.1" value={temperature} onChange={(event) => setTemperature(Number(event.target.value))} className="mt-1 bg-[#000000] border-[#262626] text-white" />
               </div>
               {provider === 'openrouter' && (
                 <>
                   <div>
                     <label className="text-xs uppercase tracking-wider text-[#8C8C8C]">OpenRouter base URL</label>
-                    <Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} className="mt-1 bg-[#000000] border-[#2E2E2E] text-white" />
+                    <Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} className="mt-1 bg-[#000000] border-[#262626] text-white" />
                   </div>
                   <div>
                     <label className="text-xs uppercase tracking-wider text-[#8C8C8C]">App title</label>
-                    <Input value={appName} onChange={(event) => setAppName(event.target.value)} className="mt-1 bg-[#000000] border-[#2E2E2E] text-white" />
+                    <Input value={appName} onChange={(event) => setAppName(event.target.value)} className="mt-1 bg-[#000000] border-[#262626] text-white" />
                   </div>
                   <div className="md:col-span-2">
                     <label className="text-xs uppercase tracking-wider text-[#8C8C8C]">HTTP referer / site URL</label>
-                    <Input value={siteUrl} onChange={(event) => setSiteUrl(event.target.value)} className="mt-1 bg-[#000000] border-[#2E2E2E] text-white" />
+                    <Input value={siteUrl} onChange={(event) => setSiteUrl(event.target.value)} className="mt-1 bg-[#000000] border-[#262626] text-white" />
                   </div>
                 </>
               )}
@@ -518,26 +520,26 @@ function ModelTab() {
 
             <div className="mt-5 flex flex-wrap gap-2">
               {examples.map(example => (
-                <button key={example} onClick={() => setModel(example)} className="rounded-full border border-[#2E2E2E] bg-[#000000] px-3 py-1.5 text-xs text-[#B8B8B8] transition-colors hover:border-[#c16e43] hover:text-white">
+                <button key={example} onClick={() => setModel(example)} className="rounded-full border border-[#262626] bg-[#000000] px-3 py-1.5 text-xs text-[#B8B8B8] transition-colors hover:border-[#c16e43] hover:text-white">
                   {example}
                 </button>
               ))}
             </div>
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              <Button onClick={handleSave} disabled={isSaving || isLoading || !model.trim()} className="bg-[#c16e43] text-[#0A0A0A] hover:bg-[#d08a5e] disabled:opacity-50">
-                {isSaving ? 'Saving...' : 'Save Runtime Config'}
+              <Button onClick={handleSave} disabled={isSaving || isLoading || !model.trim() || (needsApiKey && !apiKey.trim())} className="bg-[#c16e43] text-[#0A0A0A] hover:bg-[#d08a5e] disabled:opacity-50">
+                {isSaving ? 'Saving...' : 'Save Model Access'}
               </Button>
               {statusMessage && <p className="text-sm text-[#B8B8B8]">{statusMessage}</p>}
             </div>
           </div>
 
-          <div className="rounded-2xl border border-[#2E2E2E] bg-[#151515] p-6">
-            <h3 className="text-sm font-semibold text-white">Current runtime</h3>
+          <div className="rounded-2xl border border-[#262626] bg-[#0D0D0D] p-6">
+            <h3 className="text-sm font-semibold text-white">Current account</h3>
             <div className="mt-4 space-y-3 text-sm">
               <RuntimeRow label="Provider" value={runtimeConfig?.provider || provider} />
               <RuntimeRow label="Model" value={runtimeConfig?.resolved_model || resolvedPreview || 'Not configured'} mono />
-              <RuntimeRow label="Key env" value={runtimeConfig?.key_env || selectedProvider.keyEnv} mono />
+              <RuntimeRow label="Key ownership" value={runtimeConfig?.key_configured ? 'Your encrypted key' : 'Not configured'} />
               <RuntimeRow label="Key status" value={runtimeConfig?.key_configured ? 'Configured' : 'Missing'} />
               <RuntimeRow label="Base URL" value={runtimeConfig?.base_url || baseUrl || 'Default'} mono />
             </div>
@@ -549,16 +551,15 @@ function ModelTab() {
       )}
 
       {activeSubTab === 'keys' && (
-        <div className="rounded-2xl border border-[#2E2E2E] bg-[#151515] overflow-x-auto">
+        <div className="rounded-2xl border border-[#262626] bg-[#0D0D0D] overflow-x-auto">
           <table className="w-full min-w-[560px]">
-            <thead><tr className="border-b border-[#2E2E2E]"><th className="text-left px-4 py-3 text-xs font-medium text-[#8C8C8C] uppercase">Provider</th><th className="text-left px-4 py-3 text-xs font-medium text-[#8C8C8C] uppercase">Models</th><th className="text-left px-4 py-3 text-xs font-medium text-[#8C8C8C] uppercase">Runtime Key Status</th></tr></thead>
-            <tbody>{apiKeys.map((key) => {
-              const isRuntimeProvider = key.provider.toLowerCase().replace(/\s+/g, '') === provider.replace(/_/g, '');
-              const configured = isRuntimeProvider ? Boolean(runtimeConfig?.key_configured) : key.hasKey;
+            <thead><tr className="border-b border-[#262626]"><th className="text-left px-4 py-3 text-xs font-medium text-[#8C8C8C] uppercase">Provider</th><th className="text-left px-4 py-3 text-xs font-medium text-[#8C8C8C] uppercase">Access</th><th className="text-left px-4 py-3 text-xs font-medium text-[#8C8C8C] uppercase">Your key status</th></tr></thead>
+            <tbody>{providers.map((item) => {
+              const configured = runtimeConfig?.provider === item.id && Boolean(runtimeConfig.key_configured);
               return (
-                <tr key={key.provider} className="border-b border-[#2E2E2E] last:border-0 hover:bg-[#1B1B1B]">
-                  <td className="px-4 py-3 text-sm text-white">{key.provider}</td>
-                  <td className="px-4 py-3 text-sm text-[#B8B8B8]">{key.models.join(', ')}</td>
+                <tr key={item.id} className="border-b border-[#262626] last:border-0 hover:bg-[#1B1B1B]">
+                  <td className="px-4 py-3 text-sm text-white">{item.label}</td>
+                  <td className="px-4 py-3 text-sm text-[#B8B8B8]">Supported for your account</td>
                   <td className="px-4 py-3"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${configured ? 'bg-[#22C55E]/10 text-[#22C55E]' : 'bg-[#F97066]/10 text-[#F97066]'}`}>{configured ? 'Configured' : 'Missing'}</span></td>
                 </tr>
               );
@@ -569,11 +570,11 @@ function ModelTab() {
 
       {activeSubTab === 'config' && (
         <div className="space-y-6">
-          <div className="rounded-2xl border border-[#2E2E2E] bg-[#151515] p-6">
+          <div className="rounded-2xl border border-[#262626] bg-[#0D0D0D] p-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-[#8C8C8C]">Runtime assignment</p>
-                <h3 className="mt-1 text-lg font-semibold text-white">All agent surfaces use the active runtime model</h3>
+                <p className="text-xs uppercase tracking-[0.18em] text-[#8C8C8C]">Account assignment</p>
+                <h3 className="mt-1 text-lg font-semibold text-white">All agent surfaces use your active model</h3>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-[#B8B8B8]">
                   There is no separate tools model. The LangGraph nodes call deterministic backend tools, then the configured runtime model writes the final answer using that tool evidence.
                 </p>
@@ -589,7 +590,7 @@ function ModelTab() {
                 { name: 'Dashboard Assistant', description: 'Uses the same model for dashboard analysis after backend tool evidence is collected.' },
                 { name: 'Report Assistant', description: 'Uses the same model to draft report content from current session and folder context.' },
               ].map(agent => (
-                <div key={agent.name} className="rounded-xl border border-[#2E2E2E] bg-[#000000] p-4">
+                <div key={agent.name} className="rounded-xl border border-[#262626] bg-[#000000] p-4">
                   <h4 className="text-sm font-semibold text-white">{agent.name}</h4>
                   <p className="mt-2 min-h-[44px] text-xs leading-5 text-[#8C8C8C]">{agent.description}</p>
                   <div className="mt-4 space-y-3">
@@ -601,8 +602,8 @@ function ModelTab() {
               ))}
             </div>
 
-            <div className="mt-5 rounded-xl border border-[#c16e43]/20 bg-[#c16e43]/10 p-4 text-xs leading-5 text-[#D8D8D8]">
-              Change provider, model slug, or API key in Runtime Setup. New chat, dashboard, and report requests use that runtime immediately.
+            <div className="mt-5 rounded-xl border border-[#262626] bg-[#101010] p-4 text-xs leading-5 text-[#D8D8D8]">
+              Change your provider, model slug, or API key in Model Setup. New Prepare, Visualize, and Publish requests use it immediately.
             </div>
           </div>
         </div>
@@ -628,15 +629,15 @@ function ProjectsTab() {
       <div className="flex items-center gap-4 mb-6">
         <div className="relative w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#71717A]" />
-          <Input placeholder="Search projects..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 h-9 bg-[#161616] border-[#2A2A2A] text-white placeholder:text-[#71717A]" />
+          <Input placeholder="Search projects..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 h-9 bg-[#101010] border-[#242424] text-white placeholder:text-[#71717A]" />
         </div>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-9 bg-[#161616] border border-[#2A2A2A] rounded-lg px-3 text-white text-sm">
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="h-9 bg-[#101010] border border-[#242424] rounded-lg px-3 text-white text-sm">
           <option>All Status</option><option>Active</option><option>Archived</option><option>Deleted</option>
         </select>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {['Sales Analytics', 'Customer Insights', 'Operations Review', 'Marketing Performance'].map((name, i) => (
-          <div key={i} className="bg-[#161616] border border-[#2A2A2A] rounded-xl p-5 hover:border-[#383838] transition-colors">
+          <div key={i} className="bg-[#101010] border border-[#242424] rounded-xl p-5 hover:border-[#383838] transition-colors">
             <div className="flex items-start justify-between">
               <div><h3 className="text-sm font-semibold text-white">{name}</h3><p className="text-xs text-[#71717A] mt-1">Project description goes here...</p></div>
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${i < 3 ? 'bg-[#22C55E]/10 text-[#22C55E]' : 'bg-[#71717A]/10 text-[#71717A]'}`}>{i < 3 ? 'Active' : 'Archived'}</span>

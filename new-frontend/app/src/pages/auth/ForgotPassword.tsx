@@ -70,7 +70,7 @@ export function ForgotPassword() {
             placeholder="you@company.com"
             value={email}
             onChange={(e) => { setEmail(e.target.value); setError(''); }}
-            className={`mt-1.5 h-11 bg-[#161616] border-[#2A2A2A] text-white placeholder:text-[#71717A] focus:border-[#c16e43] ${error ? 'border-[#F97066]' : ''}`}
+            className={`mt-1.5 h-11 bg-[#101010] border-[#242424] text-white placeholder:text-[#71717A] focus:border-[#c16e43] ${error ? 'border-[#F97066]' : ''}`}
           />
           {error && <p className="mt-1 text-xs text-[#F97066]">{error}</p>}
         </div>
