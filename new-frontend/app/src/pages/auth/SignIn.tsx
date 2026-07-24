@@ -18,7 +18,6 @@ export function SignIn() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
-  const [googleEnabled, setGoogleEnabled] = useState(false);
   const devGmailSignInEnabled = isDevGmailSignInEnabled();
 
   const validate = () => {
@@ -84,14 +83,12 @@ export function SignIn() {
       <p className="mt-2 text-sm text-[#A1A1AA]">Sign in to your workspace</p>
 
       <div className="mt-8 space-y-4">
-        <GoogleSignInButton disabled={isLoading} onCredential={handleGoogleCredential} onError={handleGoogleError} onAvailabilityChange={setGoogleEnabled} />
-        {googleEnabled && (
-          <div className="flex items-center gap-3 text-xs text-[#71717A]">
-            <span className="h-px flex-1 bg-[#242424]" />
-            <span>or continue with email</span>
-            <span className="h-px flex-1 bg-[#242424]" />
-          </div>
-        )}
+        <GoogleSignInButton disabled={isLoading} onCredential={handleGoogleCredential} onError={handleGoogleError} />
+        <div className="flex items-center gap-3 text-xs text-[#71717A]">
+          <span className="h-px flex-1 bg-[#242424]" />
+          <span>or continue with email</span>
+          <span className="h-px flex-1 bg-[#242424]" />
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="mt-5 space-y-5">

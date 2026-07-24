@@ -56,6 +56,7 @@ const loadGoogleScript = () => new Promise<void>((resolve, reject) => {
 export function GoogleSignInButton({ disabled, onCredential, onError, onAvailabilityChange }: GoogleSignInButtonProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [enabled, setEnabled] = useState(false);
+  const [unavailable, setUnavailable] = useState(false);
   const [working, setWorking] = useState(false);
 
   useEffect(() => {
@@ -65,6 +66,7 @@ export function GoogleSignInButton({ disabled, onCredential, onError, onAvailabi
       .then(async (config) => {
         if (!active) return;
         if (!config.enabled || !config.client_id) {
+          setUnavailable(true);
           onAvailabilityChange?.(false);
           return;
         }
@@ -99,6 +101,7 @@ export function GoogleSignInButton({ disabled, onCredential, onError, onAvailabi
       })
       .catch((error) => {
         if (active) {
+          setUnavailable(true);
           onAvailabilityChange?.(false);
           onError(error instanceof Error ? error.message : 'Google sign-in is unavailable.');
         }
@@ -110,8 +113,31 @@ export function GoogleSignInButton({ disabled, onCredential, onError, onAvailabi
   }, [onAvailabilityChange, onCredential, onError]);
 
   return (
-    <div className={`relative w-full ${!enabled ? 'max-h-0 overflow-hidden opacity-0' : ''} ${disabled || working ? 'pointer-events-none opacity-60' : ''}`}>
-      <div ref={containerRef} className="flex min-h-11 w-full justify-center overflow-hidden" />
+    <div className={`relative w-full ${disabled || working ? 'pointer-events-none opacity-60' : ''}`}>
+      <div
+        ref={containerRef}
+        className={`min-h-11 w-full justify-center overflow-hidden ${enabled ? 'flex' : 'hidden'}`}
+      />
+      {unavailable && !enabled && (
+        <div className="space-y-2">
+          <button
+            type="button"
+            disabled
+            className="flex h-11 w-full cursor-not-allowed items-center justify-center gap-3 rounded-md border border-[#242424] bg-[#101010] px-4 text-sm font-medium text-[#A1A1AA]"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5">
+              <path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.4-.18-2.07H12v3.92h5.38a4.6 4.6 0 0 1-2 3.02v2.54h3.24c1.9-1.75 2.98-4.33 2.98-7.41Z" />
+              <path fill="#34A853" d="M12 22c2.7 0 4.98-.9 6.64-2.36l-3.24-2.54c-.9.6-2.05.96-3.4.96-2.61 0-4.82-1.76-5.61-4.13H3.04v2.62A10 10 0 0 0 12 22Z" />
+              <path fill="#FBBC05" d="M6.39 13.93A6.02 6.02 0 0 1 6.07 12c0-.67.12-1.32.32-1.93V7.45H3.04A10 10 0 0 0 2 12c0 1.63.39 3.17 1.04 4.55l3.35-2.62Z" />
+              <path fill="#EA4335" d="M12 5.94c1.47 0 2.79.5 3.83 1.5l2.88-2.88A9.65 9.65 0 0 0 12 2a10 10 0 0 0-8.96 5.45l3.35 2.62C7.18 7.7 9.39 5.94 12 5.94Z" />
+            </svg>
+            Continue with Google
+          </button>
+          <p className="text-center text-xs text-[#71717A]">
+            Google sign-in is temporarily unavailable.
+          </p>
+        </div>
+      )}
       {working && (
         <div className="absolute inset-0 flex items-center justify-center bg-[#101010]/80">
           <Loader2 className="h-4 w-4 animate-spin text-[#c16e43]" />
