@@ -83,4 +83,4 @@ jobs:
       - name: Roll out and verify
         run: |
           gcloud compute ssh "$VM_NAME" --project "$PROJECT_ID" --zone "$ZONE" --tunnel-through-iap --quiet --command \
-            "sudo mkdir -p /opt/eventhorizon && sudo tar -xzf /tmp/eventhorizon-deploy.tgz -C /opt/eventhorizon && sudo chmod +x /opt/eventhorizon/deploy/vm/*.sh && sudo /opt/eventhorizon/deploy/vm/deploy.sh '${GITHUB_SHA}'"
+            "sudo mkdir -p /opt/eventhorizon && sudo tar -xzf /tmp/eventhorizon-deploy.tgz -C /opt/eventhorizon && sudo chmod +x /opt/eventhorizon/deploy/vm/bootstrap.sh /opt/eventhorizon/deploy/vm/deploy.sh /opt/eventhorizon/deploy/vm/healthcheck.sh && sudo /opt/eventhorizon/deploy/vm/deploy.sh '${GITHUB_SHA}'"
