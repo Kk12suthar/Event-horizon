@@ -8,7 +8,9 @@ import { VerifyEmail } from '@/pages/auth/VerifyEmail';
 import { AppShell } from '@/components/AppShell';
 import { Landing } from '@/pages/Landing';
 import { Projects } from '@/pages/Projects';
+import { Canvas } from '@/pages/Canvas';
 import { Workspace } from '@/pages/Workspace';
+import { Upload } from '@/pages/Upload';
 import { AdminPanel } from '@/pages/AdminPanel';
 import { ModelAccess } from '@/pages/ModelAccess';
 import { useAuth } from '@/hooks/useAuth';
@@ -67,9 +69,10 @@ function AppRoutes() {
 
       {/* Protected app routes */}
       <Route path="/app" element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
+        <Route path="canvas" element={<Canvas />} />
         <Route path="project" element={<Projects />} />
         <Route path="workspace" element={<Workspace />} />
-        <Route path="upload" element={<RedirectToWorkspace mode="prepare" />} />
+        <Route path="upload" element={<Upload />} />
         <Route path="transform" element={<RedirectToWorkspace mode="prepare" />} />
         <Route path="dashboard" element={<RedirectToWorkspace mode="visualize" />} />
         <Route path="reports" element={<RedirectToWorkspace mode="publish" />} />

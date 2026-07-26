@@ -26,7 +26,37 @@ from tools.data_tools import TOOLS_BY_NAME, openai_tool_schemas
 logger = logging.getLogger("eventhorizon.agent_server.inprocess_tools")
 
 FOLDER_SCOPED_ARG = "folder_id"
-_MAX_RESULT_CHARS = 8000
+_MAX_RESULT_CHARS = 12_000
+
+
+def _serialize_result(result: Any) -> str:
+    """Return valid JSON and compact oversized visual commits safely."""
+    try:
+        encoded = json.dumps(result, default=str)
+    except Exception:
+        return str(result)[:_MAX_RESULT_CHARS]
+    if len(encoded) <= _MAX_RESULT_CHARS:
+        return encoded
+    if isinstance(result, dict):
+        artifact = result.get("artifact")
+        if isinstance(artifact, dict) and str(artifact.get("artifact_type", "")).startswith("visual_"):
+            compact = {
+                key: result[key]
+                for key in ("document_id", "revision", "message", "readability", "error")
+                if key in result
+            }
+            compact["element_ids"] = list(result.get("element_ids") or [])[:100]
+            compact["artifact"] = {
+                key: artifact[key]
+                for key in ("artifact_type", "document_id", "revision", "label")
+                if key in artifact
+            }
+            compact["result_compacted"] = True
+            return json.dumps(compact, default=str)
+    return json.dumps({
+        "error": "tool_result_too_large",
+        "message": "The tool completed but its result was too large to return to the model.",
+    })
 
 
 class InProcessToolProvider:
@@ -41,6 +71,8 @@ class InProcessToolProvider:
         session_id: str | None = None,
         selected_table_id: str | None = None,
         selected_table_name: str | None = None,
+        project_id: str | None = None,
+        visual_document_id: str | None = None,
     ):
         self._user_id = user_id
         self._folder_id = folder_id
@@ -48,6 +80,8 @@ class InProcessToolProvider:
         self._session_id = session_id
         self._selected_table_id = selected_table_id
         self._selected_table_name = selected_table_name
+        self._project_id = project_id
+        self._visual_document_id = visual_document_id
         self.openai_tools = openai_tool_schemas(surface, include_context=False)
 
     @property
@@ -68,6 +102,11 @@ class InProcessToolProvider:
         args["selected_table_id"] = self._selected_table_id
         args["selected_table_name"] = self._selected_table_name
         args.pop("user_id", None)
+        if name.startswith("canvas_"):
+            args["project_id"] = self._project_id
+            if self._visual_document_id and name not in {"canvas_create", "canvas_list"}:
+                # The open document is trusted UI context, not model-controlled.
+                args["document_id"] = self._visual_document_id
         try:
             result = spec.handler(user_id=self._user_id, **args)
         except TypeError as exc:
@@ -75,7 +114,4 @@ class InProcessToolProvider:
         except Exception as exc:  # surface tool errors to the model + trail
             logger.warning("In-process tool '%s' failed: %s", name, exc)
             return f"Tool '{name}' failed: {exc}"
-        try:
-            return json.dumps(result, default=str)[:_MAX_RESULT_CHARS]
-        except Exception:
-            return str(result)[:_MAX_RESULT_CHARS]
+        return _serialize_result(result)

@@ -31,7 +31,8 @@ from router import (
     data_collection,
     invitations, 
     refresh,
-    health
+    health,
+    visual_documents
 )
 
 import os
@@ -109,6 +110,13 @@ def _create_runtime_tables():
         print("Session workspace tables ready")
     except Exception as e:
         print(f"Could not ensure session workspace tables (non-fatal): {e}")
+    try:
+        from shared.visual_document_store import ensure_visual_document_schema
+
+        ensure_visual_document_schema()
+        print("Visual document tables ready")
+    except Exception as e:
+        print(f"Could not ensure visual document tables (non-fatal): {e}")
 
 app.include_router(projects.router)
 app.include_router(users.router)
@@ -123,6 +131,7 @@ app.include_router(data.router)
 app.include_router(data_collection.router)
 app.include_router(invitations.router)
 app.include_router(refresh.router)
+app.include_router(visual_documents.router)
 if elk_data is not None:
     app.include_router(elk_data.router)
 app.include_router(health.router)

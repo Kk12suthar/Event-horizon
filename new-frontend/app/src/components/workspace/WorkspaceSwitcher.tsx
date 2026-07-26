@@ -3,9 +3,6 @@ import {
   ChevronDown,
   ChevronRight,
   Folder as FolderIcon,
-  FolderPlus,
-  Loader2,
-  Plus,
   Search,
 } from 'lucide-react';
 import {
@@ -27,8 +24,7 @@ import { SPACE } from './theme';
  *
  * Monochrome SPACE tokens only - white/light-gray accent, no purple/blue.
  *
- * Requirements: 5.1 (project list + search + new project), 5.2 (folder
- * create / selection within the selected project).
+ * Requirements: project and folder selection within the active workspace.
  */
 
 export interface WorkspaceSwitcherProps {
@@ -38,14 +34,6 @@ export interface WorkspaceSwitcherProps {
   selectedFolder: Folder | null;
   /** Called with the folder id when the user picks a folder. */
   onSelectFolder: (folderId: string) => void;
-  /** Inline create - reuses appState.createProject (status defaulted upstream). */
-  onCreateProject: (name: string, description: string) => Promise<Project | null>;
-  /** Inline create - reuses appState.createFolder. */
-  onCreateFolder: (
-    projectId: string,
-    name: string,
-    description: string,
-  ) => Promise<Folder | null>;
 }
 
 /** Small status dot + label for a folder's status. */
@@ -65,102 +53,12 @@ function FolderStatusDot({ status }: { status: Folder['status'] }) {
   );
 }
 
-/** Inline create form shared by project/folder creation. */
-function InlineCreateForm({
-  label,
-  onSubmit,
-  onCancel,
-}: {
-  label: string;
-  onSubmit: (name: string, description: string) => Promise<void>;
-  onCancel: () => void;
-}) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  const canSubmit = name.trim().length > 0 && !submitting;
-
-  const handleSubmit = async () => {
-    if (!canSubmit) return;
-    setSubmitting(true);
-    try {
-      await onSubmit(name.trim(), description.trim());
-      setName('');
-      setDescription('');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div
-      className="flex flex-col gap-2 rounded-lg p-2"
-      style={{ backgroundColor: SPACE.hover, border: `1px solid ${SPACE.border}` }}
-    >
-      <input
-        autoFocus
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') void handleSubmit();
-          if (e.key === 'Escape') onCancel();
-        }}
-        placeholder={`${label} name`}
-        className="w-full rounded-md px-2 py-1.5 text-sm outline-none"
-        style={{
-          backgroundColor: SPACE.panelAlt,
-          color: SPACE.text,
-          border: `1px solid ${SPACE.border}`,
-        }}
-      />
-      <input
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') void handleSubmit();
-          if (e.key === 'Escape') onCancel();
-        }}
-        placeholder="Description (optional)"
-        className="w-full rounded-md px-2 py-1.5 text-xs outline-none"
-        style={{
-          backgroundColor: SPACE.panelAlt,
-          color: SPACE.muted,
-          border: `1px solid ${SPACE.border}`,
-        }}
-      />
-      <div className="flex items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-md px-2 py-1 text-xs transition-colors"
-          style={{ color: SPACE.muted }}
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={() => void handleSubmit()}
-          disabled={!canSubmit}
-          className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-40"
-          style={{ backgroundColor: SPACE.brand, color: SPACE.onBrand }}
-        >
-          {submitting && <Loader2 className="h-3 w-3 animate-spin" />}
-          Create
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export function WorkspaceSwitcher({
   projects,
   folders,
   selectedProject,
   selectedFolder,
   onSelectFolder,
-  onCreateProject,
-  onCreateFolder,
 }: WorkspaceSwitcherProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -168,8 +66,6 @@ export function WorkspaceSwitcher({
   const [activeProjectId, setActiveProjectId] = useState<string | null>(
     selectedProject?.id ?? null,
   );
-  const [creatingProject, setCreatingProject] = useState(false);
-  const [creatingFolder, setCreatingFolder] = useState(false);
 
   const normalizedQuery = query.trim().toLowerCase();
 
@@ -190,19 +86,6 @@ export function WorkspaceSwitcher({
     onSelectFolder(folderId);
     setOpen(false);
     setQuery('');
-  };
-
-  const handleCreateProject = async (name: string, description: string) => {
-    const created = await onCreateProject(name, description);
-    if (created) setActiveProjectId(created.id);
-    setCreatingProject(false);
-  };
-
-  const handleCreateFolder = async (name: string, description: string) => {
-    if (!effectiveProjectId) return;
-    const created = await onCreateFolder(effectiveProjectId, name, description);
-    if (created) handleSelectFolder(created.id);
-    setCreatingFolder(false);
   };
 
   return (
@@ -267,32 +150,9 @@ export function WorkspaceSwitcher({
               >
                 Projects
               </span>
-              <button
-                type="button"
-                onClick={() => setCreatingProject((v) => !v)}
-                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] transition-colors"
-                style={{ color: SPACE.muted }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = SPACE.text;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = SPACE.muted;
-                }}
-              >
-                <Plus className="h-3 w-3" />
-                New project
-              </button>
             </div>
 
-            {creatingProject && (
-              <InlineCreateForm
-                label="Project"
-                onSubmit={handleCreateProject}
-                onCancel={() => setCreatingProject(false)}
-              />
-            )}
-
-            {filteredProjects.length === 0 && !creatingProject ? (
+            {filteredProjects.length === 0 ? (
               <p className="px-1 py-1 text-xs" style={{ color: SPACE.subtle }}>
                 No projects found.
               </p>
@@ -335,37 +195,13 @@ export function WorkspaceSwitcher({
               >
                 Folders
               </span>
-              <button
-                type="button"
-                onClick={() => setCreatingFolder((v) => !v)}
-                disabled={!effectiveProjectId}
-                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] transition-colors disabled:opacity-40"
-                style={{ color: SPACE.muted }}
-                onMouseEnter={(e) => {
-                  if (effectiveProjectId) e.currentTarget.style.color = SPACE.text;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = SPACE.muted;
-                }}
-              >
-                <FolderPlus className="h-3 w-3" />
-                New folder
-              </button>
             </div>
-
-            {creatingFolder && effectiveProjectId && (
-              <InlineCreateForm
-                label="Folder"
-                onSubmit={handleCreateFolder}
-                onCancel={() => setCreatingFolder(false)}
-              />
-            )}
 
             {!effectiveProjectId ? (
               <p className="px-1 py-1 text-xs" style={{ color: SPACE.subtle }}>
                 Select a project to see its folders.
               </p>
-            ) : projectFolders.length === 0 && !creatingFolder ? (
+            ) : projectFolders.length === 0 ? (
               <p className="px-1 py-1 text-xs" style={{ color: SPACE.subtle }}>
                 No folders yet.
               </p>

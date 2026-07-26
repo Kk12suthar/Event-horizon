@@ -31,7 +31,7 @@ from runtime.user_model_config import (
     load_effective_model_config,
 )
 from runtime.user_model_store import load_user_model_config, save_user_model_config
-from security.access import require_folder_access
+from security.access import project_id_for_folder, require_folder_access
 from security.auth import require_user_from_authorization
 from shared.workspace_store import (
     WorkspaceStoreError,
@@ -65,6 +65,7 @@ class AgentStreamRequest(BaseModel):
     session_id: Optional[str] = None
     folder_id: Optional[str] = None
     project_id: Optional[str] = None
+    visual_document_id: Optional[str] = None
     user_id: str = "default_user"
     selected_tables: list[str] = Field(default_factory=list)
     selected_table_id: Optional[str] = None
@@ -251,6 +252,7 @@ async def _stream_graph(payload: AgentStreamRequest, surface: str, workspace_con
         "session_id": session_id,
         "folder_id": payload.folder_id,
         "project_id": payload.project_id,
+        "visual_document_id": payload.visual_document_id,
         "user_id": payload.user_id,
         "query_id": query_id,
         "user_message": payload.query,
@@ -319,6 +321,23 @@ async def dashboard_stream(payload: AgentStreamRequest, authorization: str | Non
     workspace_context = _authorized_workspace_context(payload, "dashboard")
     return StreamingResponse(
         _stream_graph(payload, "dashboard", workspace_context),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+    )
+
+
+@app.post("/agent/canvas/stream")
+async def canvas_stream(payload: AgentStreamRequest, authorization: str | None = Header(default=None)) -> StreamingResponse:
+    """Stream the agent that creates and edits a folder-scoped Visual Document."""
+    user = require_user_from_authorization(authorization)
+    payload.user_id = str(user["sub"])
+    if not payload.folder_id:
+        raise HTTPException(400, "folder_id is required for canvas chat.")
+    require_folder_access(payload.folder_id, payload.user_id, min_level="ANALYST")
+    payload.project_id = project_id_for_folder(payload.folder_id)
+    workspace_context = _authorized_workspace_context(payload, "canvas")
+    return StreamingResponse(
+        _stream_graph(payload, "canvas", workspace_context),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )

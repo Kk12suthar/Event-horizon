@@ -104,6 +104,25 @@ class ProductionPolicyTests(unittest.TestCase):
 
         self.assertEqual(getattr(ctx.exception, "status_code", None), 403)
 
+    def test_project_creation_role_requires_analyst_or_admin(self):
+
+        from security.policy import require_global_level
+
+        self.assertEqual(
+            require_global_level({"sub": "analyst"}, FakeDb(role="ANALYST")),
+            "ANALYST",
+        )
+        self.assertEqual(
+            require_global_level({"sub": "admin"}, FakeDb(role="ADMIN")),
+            "ADMIN",
+        )
+
+        with self.assertRaises(Exception) as ctx:
+            require_global_level({"sub": "viewer"}, FakeDb(role="VIEWER"))
+
+        self.assertEqual(getattr(ctx.exception, "status_code", None), 403)
+
+
 
 if __name__ == "__main__":
     unittest.main()

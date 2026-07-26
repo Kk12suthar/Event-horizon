@@ -25,12 +25,6 @@ export interface WorkspaceTopbarProps {
   artifactOpen: boolean;
   onToggleArtifact: () => void;
   onSelectFolder: (folderId: string) => void;
-  onCreateProject: (name: string, description: string) => Promise<Project | null>;
-  onCreateFolder: (
-    projectId: string,
-    name: string,
-    description: string,
-  ) => Promise<Folder | null>;
 }
 
 /** Small status pill for the selected folder. */
@@ -81,8 +75,6 @@ export function WorkspaceTopbar({
   artifactOpen,
   onToggleArtifact,
   onSelectFolder,
-  onCreateProject,
-  onCreateFolder,
 }: WorkspaceTopbarProps) {
   return (
     <header
@@ -100,8 +92,6 @@ export function WorkspaceTopbar({
           selectedProject={selectedProject}
           selectedFolder={selectedFolder}
           onSelectFolder={onSelectFolder}
-          onCreateProject={onCreateProject}
-          onCreateFolder={onCreateFolder}
         />
         {selectedFolder && <FolderStatusPill status={selectedFolder.status} />}
       </div>

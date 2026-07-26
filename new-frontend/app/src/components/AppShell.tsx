@@ -20,7 +20,7 @@ export function AppShell() {
   // concrete destination (`/app`) drops the user straight into the Workspace.
   useEffect(() => {
     if (location.pathname === '/app' || location.pathname === '/app/') {
-      navigate('/app/workspace', { replace: true });
+      navigate('/app/project', { replace: true });
     }
   }, [location.pathname, navigate]);
 
@@ -31,8 +31,8 @@ export function AppShell() {
     // context is expected. On other pages (e.g. Projects) a stale sessionStorage
     // value would trigger a race condition that overrides the user's new folder
     // selection with a previously visited one.
-    const isWorkspaceRoute = location.pathname.startsWith('/app/workspace');
-    const folderId = urlFolderId || (isWorkspaceRoute ? sessionStorage.getItem('folderId') : null);
+    const restoresFolderContext = location.pathname.startsWith('/app/workspace') || location.pathname.startsWith('/app/canvas') || location.pathname.startsWith('/app/upload');
+    const folderId = urlFolderId || (restoresFolderContext ? sessionStorage.getItem('folderId') : null);
     if (folderId && appState.selectedFolder?.id !== folderId) {
       void appState.loadFolderContext(folderId);
     }
@@ -45,15 +45,17 @@ export function AppShell() {
 
     if (path === '/app/project') {
       if (selectedProject && selectedFolder) {
-        return `Projects / ${selectedProject.name} / ${selectedFolder.name}`;
+        return `Data / ${selectedProject.name} / ${selectedFolder.name}`;
       }
       if (selectedProject) {
-        return `Projects / ${selectedProject.name}`;
+        return `Data / ${selectedProject.name}`;
       }
-      return 'Projects';
+      return 'Data';
     }
 
     if (path === '/app/workspace') return selectedFolder ? `Workspace / ${selectedFolder.name}` : 'Workspace';
+    if (path === '/app/canvas') return selectedFolder ? `Workspace / ${selectedFolder.name} / Canvas` : 'Canvas';
+    if (path === '/app/upload') return selectedFolder ? `Data / ${selectedFolder.name} / Upload` : 'Data / Upload';
     if (path === '/app/model-access') return 'Model Access';
     if (path === '/app/admin-panel') return 'Admin Panel';
     return '';
@@ -73,9 +75,9 @@ export function AppShell() {
   // destinations (Requirement 1.1): Home → Workspace (default landing),
   // Data → Projects, Settings → Admin Panel (Admin only). History/Help stay
   // within the Workspace surface; Admin is a no-op for non-Admin roles.
-  const railActive: SlimRailItemId | undefined = location.pathname.startsWith('/app/workspace')
+  const railActive: SlimRailItemId | undefined = location.pathname.startsWith('/app/workspace') || location.pathname.startsWith('/app/canvas')
     ? 'home'
-    : location.pathname.startsWith('/app/project')
+    : location.pathname.startsWith('/app/project') || location.pathname.startsWith('/app/upload')
       ? 'data'
       : location.pathname.startsWith('/app/model-access') || location.pathname.startsWith('/app/admin-panel')
         ? 'settings'
@@ -107,8 +109,10 @@ export function AppShell() {
   // Get page title
   const getPageTitle = () => {
     const path = location.pathname;
-    if (path === '/app/project') return 'Projects';
+    if (path === '/app/project') return 'Data';
     if (path === '/app/workspace') return 'Workspace';
+    if (path === '/app/canvas') return 'Canvas';
+    if (path === '/app/upload') return 'Upload data';
     if (path === '/app/model-access') return 'Model Access';
     if (path === '/app/admin-panel') return 'Admin Panel';
     return '';

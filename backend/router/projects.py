@@ -20,7 +20,9 @@ from utils.audit_logger import log_admin_action, ACTION_ACCESS_GRANTED, ACTION_A
 from utils.license_enforcement import enforce_project_limit
 from security.policy import (
     require_admin,
+    current_user_id,
     require_project_access,
+    require_global_level,
     require_same_user_or_admin,
     user_from_request,
 )
@@ -530,7 +532,7 @@ def get_project(project_id: uuid.UUID, request: Request, db: Session = Depends(g
 
 @router.post("/createProject", response_model=MessageResponse)
 def create_project(
-    payload: ProjectCreate, db: Session = Depends(get_db)
+    payload: ProjectCreate, request: Request, db: Session = Depends(get_db)
 ) -> MessageResponse:
     """
     Create a new project in the mtd_project table.
@@ -586,6 +588,10 @@ def create_project(
     """
     try:
         # Enforce license limit before creating project
+        caller = user_from_request(request)
+        require_global_level(caller, db, min_level="ANALYST")
+        creator_id = current_user_id(caller)
+
         enforce_project_limit(db)
         
         # First validate user exists
@@ -593,10 +599,10 @@ def create_project(
             SELECT id FROM instance01.mtd_users 
             WHERE id = :user_id
             """)
-        if not db.execute(user_check, {"user_id": payload.created_by}).fetchone():
+        if not db.execute(user_check, {"user_id": creator_id}).fetchone():
             raise HTTPException(
                 status_code=400,
-                detail=f"User {payload.created_by}  does not exist"
+                detail=f"User {creator_id} does not exist"
             )
         
         insert_query = text(
@@ -606,8 +612,30 @@ def create_project(
             """
         )
         # Convert Pydantic model to dictionary
-        payload_dict = payload.dict()
+        payload_dict = payload.model_dump()
+        payload_dict["created_by"] = creator_id
         db.execute(insert_query, payload_dict)
+        # Persist ownership in the same transaction so the project is visible
+        # immediately and cannot be orphaned by a failed client follow-up call.
+        db.execute(
+            text(
+                """
+                INSERT INTO instance01.mtd_access(
+                    entity_id, entity_type, user_id, level,
+                    granted_date, granted_by, expiration_date
+                )
+                VALUES (
+                    CAST(:project_id AS uuid), 'PROJECT', :user_id, 'ADMIN',
+                    :granted_date, :user_id, NULL
+                )
+                ON CONFLICT (entity_id, entity_type, user_id)
+                DO UPDATE SET level = 'ADMIN', granted_date = EXCLUDED.granted_date,
+                              granted_by = EXCLUDED.granted_by, expiration_date = NULL
+                """
+            ),
+            {"project_id": str(payload.id), "user_id": creator_id, "granted_date": payload.created_at},
+        )
+
         
         # Update project counts in license data
         _update_project_counts(db, delta=1)

@@ -61,6 +61,23 @@ def require_folder_access(folder_id: str | None, user_id: str | None, min_level:
     return _normalize_level(level)
 
 
+def project_id_for_folder(folder_id: str | None) -> str:
+    """Return the canonical project for a folder; never trust a model/client value."""
+    if not folder_id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "folder_id is required.")
+    with _connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT project_id::text FROM instance01.mtd_folder WHERE id = %s::uuid LIMIT 1",
+                (str(folder_id),),
+            )
+            row = cur.fetchone()
+    project_id = _row_value(row, "project_id", 0) if row else None
+    if not project_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Folder not found.")
+    return str(project_id)
+
+
 def audit_tool_call(user_id: str | None, folder_id: str | None, tool_name: str) -> None:
     logger.info("agent_tool_call user_id=%s folder_id=%s tool=%s", user_id, folder_id, tool_name)
 

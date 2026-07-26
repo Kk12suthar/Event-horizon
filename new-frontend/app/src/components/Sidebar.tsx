@@ -25,7 +25,7 @@ interface SidebarProps {
 // below and only for the Admin role. Upload/Transform/Dashboard/Report are no
 // longer navigation entries - they live inside the unified Workspace as modes.
 const navItems = [
-  { label: 'Projects', icon: FolderKanban, route: '/app/project', roles: ['Admin', 'Analyst', 'Viewer'] as const },
+  { label: 'Data', icon: FolderKanban, route: '/app/project', roles: ['Admin', 'Analyst', 'Viewer'] as const },
   { label: 'Workspace', icon: Sparkles, route: '/app/workspace', roles: ['Admin', 'Analyst', 'Viewer'] as const },
   { label: 'Model Access', icon: KeyRound, route: '/app/model-access', roles: ['Admin', 'Analyst', 'Viewer'] as const },
 ];

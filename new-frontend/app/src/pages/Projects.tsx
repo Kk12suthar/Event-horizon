@@ -579,7 +579,7 @@ function ProjectCanvas({
 
           <div className="space-y-2 border-t border-[#242424] p-4">
             <Button
-              onClick={() => onOpenWorkspace(selectedFolder.id, 'prepare')}
+              onClick={() => onOpenWorkspace(selectedFolder.id, pipeline.hasUploadedTables ? 'prepare' : 'sources')}
               disabled={!pipeline.enabledModes.prepare}
               className="h-9 w-full bg-[#C16E43] text-[#090909] hover:bg-[#D07A4E]"
             >
@@ -648,7 +648,7 @@ export function Projects() {
   const { isAdmin, isAnalyst } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [folderQuery, setFolderQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'canvas' | 'list'>('canvas');
+  const [viewMode, setViewMode] = useState<'canvas' | 'list'>('list');
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [showCreateFolder, setShowCreateFolder] = useState(false);
@@ -688,6 +688,7 @@ export function Projects() {
   }, [folderIdentity, projectFolders, selectedFolderId]);
 
   const selectedFolder = visibleFolders.find((folder) => folder.id === selectedFolderId) || visibleFolders[0] || null;
+  const canCreateProject = isAdmin || isAnalyst;
   const canUpload = isAdmin || isAnalyst;
   const canDeleteFolder = isAdmin || isAnalyst;
   const infoFolder = showFolderInfoId ? appState.folderList.find((folder) => folder.id === showFolderInfoId) : null;
@@ -727,7 +728,11 @@ export function Projects() {
     if (!folderForm.name.trim() || !appState.selectedProject) return;
     setIsSubmitting(true);
     try {
-      await appState.createFolder(folderForm.name, folderForm.description, appState.selectedProject.id);
+      const folder = await appState.createFolder(folderForm.name, folderForm.description, appState.selectedProject.id);
+      if (folder) {
+        appState.selectFolder(folder);
+        setSelectedFolderId(folder.id);
+      }
       setShowCreateFolder(false);
       resetFolderForm();
     } finally {
@@ -759,6 +764,10 @@ export function Projects() {
   const openWorkspace = (folderId: string, mode: WorkspaceMode) => {
     const folder = appState.folderList.find((item) => item.id === folderId);
     if (folder) appState.selectFolder(folder);
+    if (mode === 'sources') {
+      navigate(`/app/upload?folderId=${folderId}`);
+      return;
+    }
     navigate(`/app/workspace?folderId=${folderId}&mode=${mode}`);
   };
 
@@ -771,16 +780,16 @@ export function Projects() {
       <aside className="flex min-h-0 w-[244px] flex-none flex-col border-r border-[#292929] bg-[#111]/95 max-md:h-[142px] max-md:w-full max-md:border-b max-md:border-r-0">
         <div className="border-b border-[#292929] p-3.5">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-xs font-semibold uppercase text-[#BDBDBD]">Projects</h2>
-            {isAdmin && (
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-[#BDBDBD]">Data projects</h2>
+            {canCreateProject && (
               <button
                 type="button"
                 onClick={() => { resetProjectForm(); setShowCreateProject(true); }}
-                className="flex h-7 w-7 items-center justify-center rounded-md bg-[#C16E43] text-[#090909] transition-colors hover:bg-[#D07A4E]"
-                title="New project"
-                aria-label="New project"
+                className="flex h-8 items-center justify-center gap-1.5 rounded-md bg-[#C16E43] px-2.5 text-xs font-semibold text-[#090909] transition-colors hover:bg-[#D07A4E]"
+                title="Create a new project"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-3.5 w-3.5" />
+                New project
               </button>
             )}
           </div>
@@ -827,16 +836,16 @@ export function Projects() {
         {!appState.selectedProject ? (
           <EmptyState
             icon="folder"
-            title="Select a project"
-            description="Choose a project to open its data workspace."
-            action={isAdmin ? { label: 'Create your first project', onClick: () => { resetProjectForm(); setShowCreateProject(true); } } : undefined}
+            title={appState.projectList.length ? 'Select a project' : 'Create your first data project'}
+            description={appState.projectList.length ? 'Choose a project to manage its folders and source data.' : 'Projects keep related folders, uploads, prepared tables, and canvases together.'}
+            action={canCreateProject ? { label: 'Create your first project', onClick: () => { resetProjectForm(); setShowCreateProject(true); } } : undefined}
           />
         ) : (
           <>
             <header className="flex flex-wrap items-center gap-4 bg-[#0D0D0D] px-4 py-3 sm:px-5">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 text-[10px] uppercase text-[#666]">
-                  <span>Projects</span><ChevronRight className="h-3 w-3" /><span className="truncate text-[#999]">{appState.selectedProject.name}</span>
+                  <span>Data</span><ChevronRight className="h-3 w-3" /><span className="truncate text-[#999]">{appState.selectedProject.name}</span>
                 </div>
                 <div className="mt-1.5 flex items-center gap-2.5">
                   <h1 className="truncate text-lg font-semibold text-white">{appState.selectedProject.name}</h1>
@@ -1065,7 +1074,7 @@ function FolderRow({ folder, canUpload, onOpenWorkspace, onInfo, onDelete, canDe
 }) {
   const pipeline = useFolderPipeline(folder, canUpload);
   const openDefault = () => {
-    if (pipeline.enabledModes.prepare) onOpenWorkspace(folder.id, 'prepare');
+    onOpenWorkspace(folder.id, pipeline.hasUploadedTables ? 'prepare' : 'sources');
   };
 
   return (
@@ -1080,7 +1089,7 @@ function FolderRow({ folder, canUpload, onOpenWorkspace, onInfo, onDelete, canDe
       tabIndex={0}
       role="button"
       aria-label={`Open ${folder.name}`}
-      className={`border-b border-[#262626] transition-colors last:border-0 hover:bg-[#181818] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C16E43] ${pipeline.enabledModes.prepare ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+      className="cursor-pointer border-b border-[#262626] transition-colors last:border-0 hover:bg-[#181818] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C16E43]"
     >
       <td className="px-4 py-3">
         <div className="flex items-center gap-2"><FolderOpen className="h-4 w-4 text-[#D88A5F]" /><span className="text-sm font-medium text-white">{folder.name}</span></div>

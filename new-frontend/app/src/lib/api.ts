@@ -488,17 +488,6 @@ export async function createProjectRecord(input: {
   };
   await apiPost<JsonRecord>('/project/createProject', payload);
 
-  const expiration = new Date();
-  expiration.setFullYear(expiration.getFullYear() + 10);
-  await apiPost<JsonRecord>('/project/grantProjectAccess', {
-    entity_id: id,
-    entity_type: 'PROJECT',
-    user_id: input.createdBy,
-    access_level: 'ADMIN',
-    access_granted_date: createdAt,
-    access_granted_by: input.createdBy,
-    access_expiration_date: formatMysqlDate(expiration),
-  }).catch(() => undefined);
 
   return { ...payload, folders: [], users: [], user_access_level: 'ADMIN' };
 }

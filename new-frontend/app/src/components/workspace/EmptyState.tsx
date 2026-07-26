@@ -1,4 +1,4 @@
-import { FolderOpen, Plus, Sparkles } from 'lucide-react';
+import { FolderOpen, Sparkles } from 'lucide-react';
 import { SPACE } from './theme';
 
 /**
@@ -6,9 +6,8 @@ import { SPACE } from './theme';
  * folder is selected (Requirement 6.2: the center chat says "Select a folder
  * to begin.").
  *
- * It guides the user toward the two entry points into folder work - picking an
- * existing folder or creating a new one (both reuse the WorkspaceSwitcher /
- * appState create flows via the supplied callbacks) - and surfaces a few
+ * It guides the user toward selecting an existing folder. Project and folder
+ * creation stay on the main Projects page. It also surfaces a few
  * example prompt chips so the conversation has an obvious starting point once a
  * folder is chosen.
  *
@@ -24,8 +23,6 @@ export interface EmptyStateProps {
   description?: string;
   /** Open the project/folder picker (WorkspaceSwitcher). */
   onPickFolder?: () => void;
-  /** Start the inline create-folder flow. */
-  onCreateFolder?: () => void;
   /** Example prompt chips to display. */
   exampleChips?: string[];
   /** Called when an example chip is activated. */
@@ -42,7 +39,6 @@ export function EmptyState({
   title = 'Select a folder to begin.',
   description = 'Pick an existing folder or create a new one to start uploading data, preparing tables, and exploring insights in one conversation.',
   onPickFolder,
-  onCreateFolder,
   exampleChips = DEFAULT_EXAMPLES,
   onExampleSelect,
 }: EmptyStateProps) {
@@ -79,29 +75,6 @@ export function EmptyState({
           >
             <FolderOpen className="h-4 w-4" />
             Pick a folder
-          </button>
-        )}
-        {onCreateFolder && (
-          <button
-            type="button"
-            onClick={onCreateFolder}
-            className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-            style={{
-              border: `1px solid ${SPACE.border}`,
-              color: SPACE.muted,
-              backgroundColor: 'transparent',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = SPACE.hover;
-              e.currentTarget.style.color = SPACE.text;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = SPACE.muted;
-            }}
-          >
-            <Plus className="h-4 w-4" />
-            Create folder
           </button>
         )}
       </div>

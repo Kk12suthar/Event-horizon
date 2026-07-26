@@ -8,6 +8,7 @@ class AgentState(TypedDict, total=False):
     session_id: str
     folder_id: Optional[str]
     project_id: Optional[str]
+    visual_document_id: Optional[str]
     user_id: str
     query_id: str
     user_message: str

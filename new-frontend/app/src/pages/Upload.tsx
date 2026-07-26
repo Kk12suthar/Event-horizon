@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Upload as UploadIcon, X, FileSpreadsheet, ChevronDown, ChevronUp, Trash2, Loader2 } from 'lucide-react';
+import { Upload as UploadIcon, X, FileSpreadsheet, ChevronDown, ChevronUp, Trash2, Loader2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { OfflineState } from '@/components/OfflineState';
@@ -312,6 +312,13 @@ export function Upload() {
       <div className="flex-1 min-w-0 overflow-y-auto p-6">
         <div className="mx-auto flex w-full max-w-6xl flex-col">
           <div className="mb-2">
+            <button
+              type="button"
+              onClick={() => navigate('/app/project')}
+              className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-[#8C8C8C] transition hover:text-white"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> Back to Data
+            </button>
             <h1 className="text-xl font-bold text-white">Upload Data</h1>
             {selectedFolder && (
               <p className="text-xs text-[#B8B8B8] mt-1">
@@ -324,8 +331,11 @@ export function Upload() {
             Upload CSV, XLS, or XLSX files. Supported formats: .csv, .xls, .xlsx
           </p>
           {!selectedFolder && (
-            <div className="mb-4 rounded-lg border border-[#F59E0B]/30 bg-[#F59E0B]/10 px-4 py-3 text-sm text-[#F59E0B]">
-              Select a project folder before uploading data.
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#C16E43]/30 bg-[#C16E43]/10 px-4 py-3 text-sm text-[#D99A75]">
+              <span>Create or select a project folder before uploading data.</span>
+              <Button size="sm" onClick={() => navigate('/app/project')} className="h-8 bg-[#C16E43] text-xs text-black hover:bg-[#D07A4E]">
+                Choose folder
+              </Button>
             </div>
           )}
 
@@ -345,10 +355,11 @@ export function Upload() {
               accept=".csv,.xls,.xlsx"
               multiple
               onChange={onFileSelect}
+              disabled={!selectedFolder}
               className="hidden"
               id="file-input"
             />
-            <label htmlFor="file-input">
+            <label htmlFor="file-input" className={!selectedFolder ? 'pointer-events-none opacity-40' : 'cursor-pointer'}>
               <Button variant="outline" className="mt-4 border-[#262626] text-[#B8B8B8] hover:bg-[#181818] hover:text-white" asChild>
                 <span>{fileList.length > 0 ? 'Select More Files' : 'Select Files'}</span>
               </Button>
