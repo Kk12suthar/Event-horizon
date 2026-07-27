@@ -294,24 +294,41 @@ export function CanvasStudio() {
   const [newTitle, setNewTitle] = useState('');
   const [creating, setCreating] = useState(false);
   const flowRef = useRef<ReactFlowInstance<CanvasFlowNode, Edge> | null>(null);
+  const sourceTableIds = useMemo(() => selectedTable ? [selectedTable.id] : [], [selectedTable]);
 
   const visual = useVisualDocument({
     folderId: selectedFolder?.id || null,
     projectId: selectedFolder?.projectId || selectedProject?.id || null,
     sessionId: appState.activeSession?.id,
-    sourceTableIds: selectedTable ? [selectedTable.id] : [],
+    sourceTableIds,
     requestedDocumentId,
   });
 
+  const { commit: commitVisual, refresh: refreshVisual, select: selectVisual } = visual;
+
+  const handleSelectionChange = useCallback((ids: string[]) => {
+    setSelectedIds((current) =>
+      current.length === ids.length && current.every((id, index) => id === ids[index])
+        ? current
+        : ids,
+    );
+  }, []);
+
+  const handleElementRectChange = useCallback(
+    (elementId: string, rect: Parameters<typeof resizeElementOp>[1]) => {
+      void commitVisual([resizeElementOp(elementId, rect)], 'Move or resize element');
+    },
+    [commitVisual],
+  );
   const handleArtifact = useCallback(
     (documentId?: string) => {
       if (documentId && documentId !== visual.document?.metadata.id) {
-        void visual.select(documentId);
+        void selectVisual(documentId);
       } else {
-        void visual.refresh();
+        void refreshVisual();
       }
     },
-    [visual],
+    [refreshVisual, selectVisual, visual.document?.metadata.id],
   );
 
   const agent = useCanvasAgent({
@@ -457,8 +474,8 @@ export function CanvasStudio() {
               <VisualCanvas
                 document={visual.document}
                 selectedIds={selectedIds}
-                onSelectionChange={setSelectedIds}
-                onElementRectChange={(elementId, rect) => void visual.commit([resizeElementOp(elementId, rect)], 'Move or resize element')}
+                onSelectionChange={handleSelectionChange}
+                onElementRectChange={handleElementRectChange}
                 onReady={(instance) => { flowRef.current = instance; }}
               />
               <div className="pointer-events-none absolute left-3 top-3 flex items-center gap-2">

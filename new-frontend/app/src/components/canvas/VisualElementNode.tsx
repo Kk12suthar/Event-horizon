@@ -249,7 +249,7 @@ function TableCard({ element }: { element: TableElement }) {
           <tbody>
             {rows.slice(0, element.page_size || 10).map((row, index) => (
               <tr key={index} className="border-b border-[#222]">
-                {element.columns.map((column) => <td key={column.field} className="max-w-[140px] truncate px-2 py-1.5 text-[#D4D4D8]">{String(row[column.field] ?? '—')}</td>)}
+                {element.columns.map((column) => <td key={column.field} className="max-w-[140px] truncate px-2 py-1.5 text-[#D4D4D8]">{String(row[column.field] ?? '-')}</td>)}
               </tr>
             ))}
           </tbody>

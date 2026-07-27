@@ -31,7 +31,7 @@ export function AppShell() {
     // context is expected. On other pages (e.g. Projects) a stale sessionStorage
     // value would trigger a race condition that overrides the user's new folder
     // selection with a previously visited one.
-    const restoresFolderContext = location.pathname.startsWith('/app/workspace') || location.pathname.startsWith('/app/canvas') || location.pathname.startsWith('/app/upload');
+    const restoresFolderContext = location.pathname.startsWith('/app/workspace') || location.pathname.startsWith('/app/canvas');
     const folderId = urlFolderId || (restoresFolderContext ? sessionStorage.getItem('folderId') : null);
     if (folderId && appState.selectedFolder?.id !== folderId) {
       void appState.loadFolderContext(folderId);
@@ -55,7 +55,6 @@ export function AppShell() {
 
     if (path === '/app/workspace') return selectedFolder ? `Workspace / ${selectedFolder.name}` : 'Workspace';
     if (path === '/app/canvas') return selectedFolder ? `Workspace / ${selectedFolder.name} / Canvas` : 'Canvas';
-    if (path === '/app/upload') return selectedFolder ? `Data / ${selectedFolder.name} / Upload` : 'Data / Upload';
     if (path === '/app/model-access') return 'Model Access';
     if (path === '/app/admin-panel') return 'Admin Panel';
     return '';
@@ -77,7 +76,7 @@ export function AppShell() {
   // within the Workspace surface; Admin is a no-op for non-Admin roles.
   const railActive: SlimRailItemId | undefined = location.pathname.startsWith('/app/workspace') || location.pathname.startsWith('/app/canvas')
     ? 'home'
-    : location.pathname.startsWith('/app/project') || location.pathname.startsWith('/app/upload')
+    : location.pathname.startsWith('/app/project')
       ? 'data'
       : location.pathname.startsWith('/app/model-access') || location.pathname.startsWith('/app/admin-panel')
         ? 'settings'
@@ -112,7 +111,6 @@ export function AppShell() {
     if (path === '/app/project') return 'Data';
     if (path === '/app/workspace') return 'Workspace';
     if (path === '/app/canvas') return 'Canvas';
-    if (path === '/app/upload') return 'Upload data';
     if (path === '/app/model-access') return 'Model Access';
     if (path === '/app/admin-panel') return 'Admin Panel';
     return '';

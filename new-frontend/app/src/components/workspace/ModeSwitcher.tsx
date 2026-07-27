@@ -10,7 +10,7 @@ import { requestModeChange } from '../../hooks/usePipelineStage';
 import { SPACE } from './theme';
 
 /**
- * ModeSwitcher â€” segmented control for the three workflow modes.
+ * ModeSwitcher - segmented control for the three workflow modes.
  *
  * Renders the three modes in pipeline order (Prepare Â· Visualize Â·
  * Publish) as a compact segmented control with 16â€“18px icons. The active mode
@@ -19,7 +19,7 @@ import { SPACE } from './theme';
  *
  * Gating (Requirement 3.6): a disabled mode renders at 40% opacity with
  * `cursor: not-allowed`, a lock glyph, and a tooltip explaining what is
- * missing. Clicking a disabled mode is a no-op â€” every click is routed through
+ * missing. Clicking a disabled mode is a no-op - every click is routed through
  * the pure {@link requestModeChange} guard, which returns the current mode
  * unchanged when the target is locked, so the UI can never navigate to a
  * locked mode.
