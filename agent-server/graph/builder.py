@@ -173,6 +173,8 @@ async def data_agent(state: AgentState) -> dict[str, Any]:
             session_id=state.get("session_id"),
             selected_table_id=state.get("selected_table_id"),
             selected_table_name=state.get("selected_table_name"),
+            project_id=state.get("project_id"),
+            visual_document_id=state.get("visual_document_id"),
         )
         if not provider.openai_tools:
             return {}
@@ -180,6 +182,7 @@ async def data_agent(state: AgentState) -> dict[str, Any]:
             "chat": ("prepare_agent", "Prepare Agent"),
             "dashboard": ("visualize_agent", "Visualize Agent"),
             "report": ("publish_agent", "Publish Agent"),
+            "canvas": ("canvas_agent", "Canvas Agent"),
         }
         agent_name, label = labels.get(surface, ("data_agent", "Data Agent"))
         emit({
@@ -223,6 +226,23 @@ Use viz_get_schema when column names are unknown. For chart and KPI requests, us
     if surface == "report":
         return common + f"""
 You are the Publish agent. Use only the selected prepared table '{selected}' and persisted, non-stale charts. Every report-generation request is data-dependent: before drafting or finalizing, you must call report_get_data_summary and report_list_charts successfully. Persist requested outline sections with report_create_section. Do not fabricate numbers or chart findings. The server handles PDF, HTML, PPTX, and DOCX export after your grounded final response.
+"""
+    if surface == "canvas":
+        active_document = state.get("visual_document_id") or "none"
+        return common + f"""
+You are the Canvas agent. You create and edit validated Visual Documents, not raw frontend code.
+The currently open visual document id is '{active_document}'.
+
+Canvas workflow:
+- If an open document id is provided, reuse it. Call canvas_inspect or canvas_summarize before a substantial edit so you preserve the existing work.
+- If no document is open, call canvas_list first. Reuse the most relevant existing canvas when the user clearly refers to it; otherwise call canvas_create.
+- For process maps and variant flows, prefer canvas_create_process_map or canvas_create_variant_paths over many tiny calls.
+- For custom diagrams, compose nodes, edges, shapes, text, legends, charts, KPIs, and Gantt elements.
+- Use data tools before creating a data-bearing visual. Numbers, columns, table ids, and metrics must come from tool evidence.
+- After adding structural elements, call canvas_apply_layout and canvas_find_overlaps. Correct readability problems before finishing.
+- Never invent element ids. Read them from tool results or canvas_inspect.
+- Do not create a duplicate canvas merely because the user asks to change the open one.
+- Explain the visual result briefly after the tools succeed.
 """
     return common + f"""
 You are the Prepare agent. Tables are discovered only when the user's data request requires them; current known tables: {table_names}.

@@ -53,6 +53,16 @@ def require_admin(user: dict[str, Any] | None, db: Any) -> str:
     return caller
 
 
+
+def require_global_level(
+    user: dict[str, Any] | None, db: Any, min_level: str = "ANALYST"
+) -> str:
+    """Require a workspace role before creating top-level resources."""
+    caller = current_user_id(user)
+    role = _role_for_user(caller, db)
+    _require_level(role, min_level, caller, "workspace", "global")
+    return normalize_access_level(role)
+
 def require_project_access(
     project_id: Any,
     user: dict[str, Any] | None,

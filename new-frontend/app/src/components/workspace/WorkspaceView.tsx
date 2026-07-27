@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { PanelRight } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Grid3X3, PanelRight } from 'lucide-react';
 import { useAppState } from '@/hooks/useAppState';
 import { useAuth } from '@/hooks/useAuth';
 import { usePipelineStage } from '@/hooks/usePipelineStage';
@@ -75,6 +75,7 @@ function useMediaQuery(query: string): boolean {
 }
 
 export function WorkspaceView() {
+  const navigate = useNavigate();
   const appState = useAppState();
   const { user } = useAuth();
   const {
@@ -200,16 +201,6 @@ export function WorkspaceView() {
     [appState],
   );
 
-  const handleCreateProject = useCallback(
-    (name: string, description: string) => appState.createProject(name, description, 'Active'),
-    [appState],
-  );
-
-  const handleCreateFolder = useCallback(
-    (projectId: string, name: string, description: string) =>
-      appState.createFolder(name, description, projectId),
-    [appState],
-  );
 
   const hasFolder = Boolean(selectedFolder);
 
@@ -229,8 +220,6 @@ export function WorkspaceView() {
           artifactOpen={panelOpen}
           onToggleArtifact={() => setPanelOpen((open) => !open)}
           onSelectFolder={handleSelectFolder}
-          onCreateProject={handleCreateProject}
-          onCreateFolder={handleCreateFolder}
         />
 
         {/* Mode switcher row â€” horizontally scrollable pills on small screens
@@ -241,6 +230,16 @@ export function WorkspaceView() {
         >
           <div className="flex w-max items-center">
             <ModeSwitcher mode={mode} pipeline={pipeline} onModeChange={setMode} />
+            {selectedFolder && (
+              <button
+                type="button"
+                onClick={() => navigate(`/app/canvas?folderId=${selectedFolder.id}`)}
+                className="ml-2 inline-flex h-8 items-center gap-1.5 rounded-full border border-[#3A2A21] bg-[#18100C] px-3 text-[10px] font-medium text-[#D89A76] transition hover:border-[#69432E] hover:bg-[#21140E]"
+                title="Open the agent-controlled canvas"
+              >
+                <Grid3X3 className="h-3.5 w-3.5" /> Canvas
+              </button>
+            )}
           </div>
         </div>
 
@@ -254,7 +253,12 @@ export function WorkspaceView() {
           />
         ) : (
           <div className="flex flex-1 overflow-y-auto">
-            <EmptyState onExampleSelect={handleSend} />
+            <EmptyState
+              title="Choose data before starting a chat"
+              description="Create a project and folder in Data, upload files there, then return to Workspace when you want the agent to analyze or transform them."
+              onPickFolder={() => navigate('/app/project')}
+              exampleChips={[]}
+            />
           </div>
         )}
 

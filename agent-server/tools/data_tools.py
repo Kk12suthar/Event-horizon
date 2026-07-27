@@ -357,6 +357,7 @@ DATA_TOOLS: list[ToolSpec] = [
     ),
 ]
 
+from tools.canvas_tools import CANVAS_TOOLS
 from tools.prepare_tools import PREPARE_TOOLS
 from tools.report_tools import REPORT_TOOLS
 from tools.visualize_tools import VISUALIZE_TOOLS
@@ -364,6 +365,7 @@ from tools.visualize_tools import VISUALIZE_TOOLS
 DATA_TOOLS.extend(PREPARE_TOOLS)
 DATA_TOOLS.extend(VISUALIZE_TOOLS)
 DATA_TOOLS.extend(REPORT_TOOLS)
+DATA_TOOLS.extend(CANVAS_TOOLS)
 
 TOOLS_BY_NAME: dict[str, ToolSpec] = {tool.name: tool for tool in DATA_TOOLS}
 

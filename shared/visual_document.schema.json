@@ -1,0 +1,3118 @@
+{
+  "$defs": {
+    "AddElementOp": {
+      "additionalProperties": false,
+      "properties": {
+        "element": {
+          "discriminator": {
+            "mapping": {
+              "chart": "#/$defs/ChartElement",
+              "edge": "#/$defs/EdgeElement",
+              "gantt": "#/$defs/GanttElement",
+              "image": "#/$defs/ImageElement",
+              "kpi": "#/$defs/KpiElement",
+              "legend": "#/$defs/LegendElement",
+              "node": "#/$defs/NodeElement",
+              "path": "#/$defs/PathElement",
+              "shape": "#/$defs/ShapeElement",
+              "table": "#/$defs/TableElement",
+              "text": "#/$defs/TextElement"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/NodeElement"
+            },
+            {
+              "$ref": "#/$defs/EdgeElement"
+            },
+            {
+              "$ref": "#/$defs/ChartElement"
+            },
+            {
+              "$ref": "#/$defs/KpiElement"
+            },
+            {
+              "$ref": "#/$defs/TableElement"
+            },
+            {
+              "$ref": "#/$defs/GanttElement"
+            },
+            {
+              "$ref": "#/$defs/TextElement"
+            },
+            {
+              "$ref": "#/$defs/ShapeElement"
+            },
+            {
+              "$ref": "#/$defs/PathElement"
+            },
+            {
+              "$ref": "#/$defs/ImageElement"
+            },
+            {
+              "$ref": "#/$defs/LegendElement"
+            }
+          ],
+          "title": "Element"
+        },
+        "op": {
+          "const": "add_element",
+          "default": "add_element",
+          "title": "Op",
+          "type": "string"
+        }
+      },
+      "required": [
+        "element"
+      ],
+      "title": "AddElementOp",
+      "type": "object"
+    },
+    "AddLayerOp": {
+      "additionalProperties": false,
+      "properties": {
+        "layer": {
+          "$ref": "#/$defs/Layer"
+        },
+        "op": {
+          "const": "add_layer",
+          "default": "add_layer",
+          "title": "Op",
+          "type": "string"
+        }
+      },
+      "required": [
+        "layer"
+      ],
+      "title": "AddLayerOp",
+      "type": "object"
+    },
+    "ChartDataPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "maxLength": 300,
+          "title": "Label",
+          "type": "string"
+        },
+        "series": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Series"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "label",
+        "value"
+      ],
+      "title": "ChartDataPoint",
+      "type": "object"
+    },
+    "ChartElement": {
+      "additionalProperties": false,
+      "properties": {
+        "a11y_label": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "A11Y Label"
+        },
+        "chart_type": {
+          "enum": [
+            "bar",
+            "column",
+            "line",
+            "area",
+            "pie",
+            "donut",
+            "scatter",
+            "heatmap",
+            "waterfall",
+            "funnel",
+            "sankey",
+            "treemap",
+            "radar",
+            "boxplot"
+          ],
+          "title": "Chart Type",
+          "type": "string"
+        },
+        "data": {
+          "items": {
+            "$ref": "#/$defs/ChartDataPoint"
+          },
+          "maxItems": 500,
+          "title": "Data",
+          "type": "array"
+        },
+        "group_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group Id"
+        },
+        "hidden": {
+          "default": false,
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "layer_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Layer Id",
+          "type": "string"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "meta": {
+          "$ref": "#/$defs/ElementMeta"
+        },
+        "palette": {
+          "items": {
+            "enum": [
+              "series-1",
+              "series-2",
+              "series-3",
+              "series-4",
+              "series-5",
+              "series-6",
+              "neutral",
+              "accent",
+              "success",
+              "warning",
+              "danger"
+            ],
+            "type": "string"
+          },
+          "maxItems": 12,
+          "title": "Palette",
+          "type": "array"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "rect": {
+          "$ref": "#/$defs/Rect"
+        },
+        "row_limit": {
+          "default": 100,
+          "maximum": 10000,
+          "minimum": 1,
+          "title": "Row Limit",
+          "type": "integer"
+        },
+        "series_field": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Series Field"
+        },
+        "show_grid": {
+          "default": true,
+          "title": "Show Grid",
+          "type": "boolean"
+        },
+        "show_legend": {
+          "default": true,
+          "title": "Show Legend",
+          "type": "boolean"
+        },
+        "show_tooltip": {
+          "default": true,
+          "title": "Show Tooltip",
+          "type": "boolean"
+        },
+        "stacked": {
+          "default": false,
+          "title": "Stacked",
+          "type": "boolean"
+        },
+        "style": {
+          "$ref": "#/$defs/StyleTokens"
+        },
+        "title": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "type": {
+          "const": "chart",
+          "default": "chart",
+          "title": "Type",
+          "type": "string"
+        },
+        "x_field": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "X Field",
+          "type": "string"
+        },
+        "y_fields": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 12,
+          "minItems": 1,
+          "title": "Y Fields",
+          "type": "array"
+        },
+        "z": {
+          "default": 0,
+          "maximum": 10000,
+          "minimum": -10000,
+          "title": "Z",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "layer_id",
+        "rect",
+        "chart_type",
+        "title",
+        "x_field",
+        "y_fields",
+        "provenance"
+      ],
+      "title": "ChartElement",
+      "type": "object"
+    },
+    "Commit": {
+      "additionalProperties": false,
+      "description": "One applied batch of ops plus the inverse needed to undo it.",
+      "properties": {
+        "at": {
+          "title": "At",
+          "type": "string"
+        },
+        "author": {
+          "title": "Author",
+          "type": "string"
+        },
+        "author_kind": {
+          "default": "user",
+          "enum": [
+            "user",
+            "agent",
+            "system"
+          ],
+          "title": "Author Kind",
+          "type": "string"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "inverse_ops": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "add_element": "#/$defs/AddElementOp",
+                "add_layer": "#/$defs/AddLayerOp",
+                "create_group": "#/$defs/CreateGroupOp",
+                "move_elements": "#/$defs/MoveElementsOp",
+                "remove_element": "#/$defs/RemoveElementOp",
+                "remove_layer": "#/$defs/RemoveLayerOp",
+                "reorder_element": "#/$defs/ReorderElementOp",
+                "resize_element": "#/$defs/ResizeElementOp",
+                "set_layer": "#/$defs/SetLayerOp",
+                "set_selection": "#/$defs/SetSelectionOp",
+                "set_style": "#/$defs/SetStyleOp",
+                "set_title": "#/$defs/SetTitleOp",
+                "set_viewport": "#/$defs/SetViewportOp",
+                "ungroup": "#/$defs/UngroupOp",
+                "update_element": "#/$defs/UpdateElementOp",
+                "update_layer": "#/$defs/UpdateLayerOp"
+              },
+              "propertyName": "op"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/AddElementOp"
+              },
+              {
+                "$ref": "#/$defs/RemoveElementOp"
+              },
+              {
+                "$ref": "#/$defs/UpdateElementOp"
+              },
+              {
+                "$ref": "#/$defs/MoveElementsOp"
+              },
+              {
+                "$ref": "#/$defs/ResizeElementOp"
+              },
+              {
+                "$ref": "#/$defs/SetStyleOp"
+              },
+              {
+                "$ref": "#/$defs/SetLayerOp"
+              },
+              {
+                "$ref": "#/$defs/ReorderElementOp"
+              },
+              {
+                "$ref": "#/$defs/AddLayerOp"
+              },
+              {
+                "$ref": "#/$defs/UpdateLayerOp"
+              },
+              {
+                "$ref": "#/$defs/RemoveLayerOp"
+              },
+              {
+                "$ref": "#/$defs/CreateGroupOp"
+              },
+              {
+                "$ref": "#/$defs/UngroupOp"
+              },
+              {
+                "$ref": "#/$defs/SetViewportOp"
+              },
+              {
+                "$ref": "#/$defs/SetSelectionOp"
+              },
+              {
+                "$ref": "#/$defs/SetTitleOp"
+              }
+            ]
+          },
+          "title": "Inverse Ops",
+          "type": "array"
+        },
+        "label": {
+          "default": "edit",
+          "maxLength": 300,
+          "title": "Label",
+          "type": "string"
+        },
+        "ops": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "add_element": "#/$defs/AddElementOp",
+                "add_layer": "#/$defs/AddLayerOp",
+                "create_group": "#/$defs/CreateGroupOp",
+                "move_elements": "#/$defs/MoveElementsOp",
+                "remove_element": "#/$defs/RemoveElementOp",
+                "remove_layer": "#/$defs/RemoveLayerOp",
+                "reorder_element": "#/$defs/ReorderElementOp",
+                "resize_element": "#/$defs/ResizeElementOp",
+                "set_layer": "#/$defs/SetLayerOp",
+                "set_selection": "#/$defs/SetSelectionOp",
+                "set_style": "#/$defs/SetStyleOp",
+                "set_title": "#/$defs/SetTitleOp",
+                "set_viewport": "#/$defs/SetViewportOp",
+                "ungroup": "#/$defs/UngroupOp",
+                "update_element": "#/$defs/UpdateElementOp",
+                "update_layer": "#/$defs/UpdateLayerOp"
+              },
+              "propertyName": "op"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/AddElementOp"
+              },
+              {
+                "$ref": "#/$defs/RemoveElementOp"
+              },
+              {
+                "$ref": "#/$defs/UpdateElementOp"
+              },
+              {
+                "$ref": "#/$defs/MoveElementsOp"
+              },
+              {
+                "$ref": "#/$defs/ResizeElementOp"
+              },
+              {
+                "$ref": "#/$defs/SetStyleOp"
+              },
+              {
+                "$ref": "#/$defs/SetLayerOp"
+              },
+              {
+                "$ref": "#/$defs/ReorderElementOp"
+              },
+              {
+                "$ref": "#/$defs/AddLayerOp"
+              },
+              {
+                "$ref": "#/$defs/UpdateLayerOp"
+              },
+              {
+                "$ref": "#/$defs/RemoveLayerOp"
+              },
+              {
+                "$ref": "#/$defs/CreateGroupOp"
+              },
+              {
+                "$ref": "#/$defs/UngroupOp"
+              },
+              {
+                "$ref": "#/$defs/SetViewportOp"
+              },
+              {
+                "$ref": "#/$defs/SetSelectionOp"
+              },
+              {
+                "$ref": "#/$defs/SetTitleOp"
+              }
+            ]
+          },
+          "title": "Ops",
+          "type": "array"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "at",
+        "author"
+      ],
+      "title": "Commit",
+      "type": "object"
+    },
+    "CreateGroupOp": {
+      "additionalProperties": false,
+      "properties": {
+        "group": {
+          "$ref": "#/$defs/Group"
+        },
+        "op": {
+          "const": "create_group",
+          "default": "create_group",
+          "title": "Op",
+          "type": "string"
+        }
+      },
+      "required": [
+        "group"
+      ],
+      "title": "CreateGroupOp",
+      "type": "object"
+    },
+    "DocumentMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "created_at": {
+          "title": "Created At",
+          "type": "string"
+        },
+        "created_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Created By"
+        },
+        "folder_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Folder Id",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "project_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Project Id",
+          "type": "string"
+        },
+        "revision": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Session Id"
+        },
+        "source_revision": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Revision"
+        },
+        "source_table_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Source Table Ids",
+          "type": "array"
+        },
+        "title": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "updated_at": {
+          "title": "Updated At",
+          "type": "string"
+        },
+        "updated_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Updated By"
+        }
+      },
+      "required": [
+        "id",
+        "project_id",
+        "folder_id",
+        "title"
+      ],
+      "title": "DocumentMetadata",
+      "type": "object"
+    },
+    "EdgeElement": {
+      "additionalProperties": false,
+      "description": "Edges have no rect - geometry is derived from endpoints plus waypoints.",
+      "properties": {
+        "a11y_label": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "A11Y Label"
+        },
+        "edge_kind": {
+          "default": "sequence",
+          "enum": [
+            "sequence",
+            "conditional",
+            "message",
+            "dependency",
+            "association",
+            "rework"
+          ],
+          "title": "Edge Kind",
+          "type": "string"
+        },
+        "group_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group Id"
+        },
+        "hidden": {
+          "default": false,
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "layer_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Layer Id",
+          "type": "string"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "marker": {
+          "default": "arrow",
+          "enum": [
+            "none",
+            "arrow",
+            "arrow-both",
+            "dot"
+          ],
+          "title": "Marker",
+          "type": "string"
+        },
+        "meta": {
+          "$ref": "#/$defs/ElementMeta"
+        },
+        "metrics": {
+          "items": {
+            "$ref": "#/$defs/Metric"
+          },
+          "maxItems": 4,
+          "title": "Metrics",
+          "type": "array"
+        },
+        "provenance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Provenance"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "routing": {
+          "default": "smoothstep",
+          "enum": [
+            "straight",
+            "smoothstep",
+            "bezier",
+            "orthogonal"
+          ],
+          "title": "Routing",
+          "type": "string"
+        },
+        "source_handle": {
+          "anyOf": [
+            {
+              "enum": [
+                "top",
+                "right",
+                "bottom",
+                "left"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Handle"
+        },
+        "source_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "style": {
+          "$ref": "#/$defs/StyleTokens"
+        },
+        "target_handle": {
+          "anyOf": [
+            {
+              "enum": [
+                "top",
+                "right",
+                "bottom",
+                "left"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Handle"
+        },
+        "target_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Target Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "edge",
+          "default": "edge",
+          "title": "Type",
+          "type": "string"
+        },
+        "waypoints": {
+          "items": {
+            "$ref": "#/$defs/Point"
+          },
+          "maxItems": 64,
+          "title": "Waypoints",
+          "type": "array"
+        },
+        "z": {
+          "default": 0,
+          "maximum": 10000,
+          "minimum": -10000,
+          "title": "Z",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "layer_id",
+        "source_id",
+        "target_id"
+      ],
+      "title": "EdgeElement",
+      "type": "object"
+    },
+    "ElementMeta": {
+      "additionalProperties": false,
+      "description": "Server-maintained audit fields. Tools never need to send these.",
+      "properties": {
+        "created_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Created At"
+        },
+        "created_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Created By"
+        },
+        "revision": {
+          "default": 0,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "updated_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Updated At"
+        },
+        "updated_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Updated By"
+        }
+      },
+      "title": "ElementMeta",
+      "type": "object"
+    },
+    "GanttBar": {
+      "additionalProperties": false,
+      "properties": {
+        "depends_on": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 32,
+          "title": "Depends On",
+          "type": "array"
+        },
+        "end": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "End",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "lane": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Lane",
+          "type": "string"
+        },
+        "progress": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Progress"
+        },
+        "start": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Start",
+          "type": "string"
+        },
+        "swatch": {
+          "default": "series-1",
+          "enum": [
+            "series-1",
+            "series-2",
+            "series-3",
+            "series-4",
+            "series-5",
+            "series-6",
+            "neutral",
+            "accent",
+            "success",
+            "warning",
+            "danger"
+          ],
+          "title": "Swatch",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "lane",
+        "start",
+        "end"
+      ],
+      "title": "GanttBar",
+      "type": "object"
+    },
+    "GanttElement": {
+      "additionalProperties": false,
+      "properties": {
+        "a11y_label": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "A11Y Label"
+        },
+        "bars": {
+          "items": {
+            "$ref": "#/$defs/GanttBar"
+          },
+          "maxItems": 500,
+          "title": "Bars",
+          "type": "array"
+        },
+        "group_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group Id"
+        },
+        "hidden": {
+          "default": false,
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "layer_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Layer Id",
+          "type": "string"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "meta": {
+          "$ref": "#/$defs/ElementMeta"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "rect": {
+          "$ref": "#/$defs/Rect"
+        },
+        "show_dependencies": {
+          "default": true,
+          "title": "Show Dependencies",
+          "type": "boolean"
+        },
+        "style": {
+          "$ref": "#/$defs/StyleTokens"
+        },
+        "time_unit": {
+          "default": "day",
+          "enum": [
+            "hour",
+            "day",
+            "week",
+            "month",
+            "quarter",
+            "year"
+          ],
+          "title": "Time Unit",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "type": {
+          "const": "gantt",
+          "default": "gantt",
+          "title": "Type",
+          "type": "string"
+        },
+        "z": {
+          "default": 0,
+          "maximum": 10000,
+          "minimum": -10000,
+          "title": "Z",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "layer_id",
+        "rect",
+        "title",
+        "provenance"
+      ],
+      "title": "GanttElement",
+      "type": "object"
+    },
+    "Group": {
+      "additionalProperties": false,
+      "properties": {
+        "element_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 2000,
+          "title": "Element Ids",
+          "type": "array"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "name": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "Group",
+      "type": "object"
+    },
+    "ImageElement": {
+      "additionalProperties": false,
+      "properties": {
+        "a11y_label": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "A11Y Label"
+        },
+        "asset_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Asset Id",
+          "type": "string"
+        },
+        "fit": {
+          "default": "contain",
+          "enum": [
+            "contain",
+            "cover",
+            "fill"
+          ],
+          "title": "Fit",
+          "type": "string"
+        },
+        "group_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group Id"
+        },
+        "hidden": {
+          "default": false,
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "layer_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Layer Id",
+          "type": "string"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "meta": {
+          "$ref": "#/$defs/ElementMeta"
+        },
+        "origin": {
+          "default": "upload",
+          "enum": [
+            "upload",
+            "generated",
+            "export"
+          ],
+          "title": "Origin",
+          "type": "string"
+        },
+        "prompt": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prompt"
+        },
+        "rect": {
+          "$ref": "#/$defs/Rect"
+        },
+        "style": {
+          "$ref": "#/$defs/StyleTokens"
+        },
+        "type": {
+          "const": "image",
+          "default": "image",
+          "title": "Type",
+          "type": "string"
+        },
+        "z": {
+          "default": 0,
+          "maximum": 10000,
+          "minimum": -10000,
+          "title": "Z",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "layer_id",
+        "rect",
+        "asset_id"
+      ],
+      "title": "ImageElement",
+      "type": "object"
+    },
+    "KpiElement": {
+      "additionalProperties": false,
+      "properties": {
+        "a11y_label": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "A11Y Label"
+        },
+        "delta": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Metric"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "group_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group Id"
+        },
+        "hidden": {
+          "default": false,
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "layer_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Layer Id",
+          "type": "string"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "meta": {
+          "$ref": "#/$defs/ElementMeta"
+        },
+        "metric": {
+          "$ref": "#/$defs/Metric"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "rect": {
+          "$ref": "#/$defs/Rect"
+        },
+        "style": {
+          "$ref": "#/$defs/StyleTokens"
+        },
+        "trend": {
+          "default": "none",
+          "enum": [
+            "none",
+            "up",
+            "down",
+            "flat"
+          ],
+          "title": "Trend",
+          "type": "string"
+        },
+        "type": {
+          "const": "kpi",
+          "default": "kpi",
+          "title": "Type",
+          "type": "string"
+        },
+        "z": {
+          "default": 0,
+          "maximum": 10000,
+          "minimum": -10000,
+          "title": "Z",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "layer_id",
+        "rect",
+        "label",
+        "metric",
+        "provenance"
+      ],
+      "title": "KpiElement",
+      "type": "object"
+    },
+    "Layer": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "index": {
+          "default": 0,
+          "maximum": 32,
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        },
+        "kind": {
+          "default": "semantic",
+          "enum": [
+            "semantic",
+            "data",
+            "freeform",
+            "annotation",
+            "background"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "name": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "visible": {
+          "default": true,
+          "title": "Visible",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "Layer",
+      "type": "object"
+    },
+    "LegendElement": {
+      "additionalProperties": false,
+      "properties": {
+        "a11y_label": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "A11Y Label"
+        },
+        "entries": {
+          "items": {
+            "$ref": "#/$defs/LegendEntry"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "title": "Entries",
+          "type": "array"
+        },
+        "group_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group Id"
+        },
+        "hidden": {
+          "default": false,
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "layer_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Layer Id",
+          "type": "string"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "meta": {
+          "$ref": "#/$defs/ElementMeta"
+        },
+        "orientation": {
+          "default": "vertical",
+          "enum": [
+            "vertical",
+            "horizontal"
+          ],
+          "title": "Orientation",
+          "type": "string"
+        },
+        "rect": {
+          "$ref": "#/$defs/Rect"
+        },
+        "style": {
+          "$ref": "#/$defs/StyleTokens"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "type": {
+          "const": "legend",
+          "default": "legend",
+          "title": "Type",
+          "type": "string"
+        },
+        "z": {
+          "default": 0,
+          "maximum": 10000,
+          "minimum": -10000,
+          "title": "Z",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "layer_id",
+        "rect",
+        "entries"
+      ],
+      "title": "LegendElement",
+      "type": "object"
+    },
+    "LegendEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "shape": {
+          "default": "square",
+          "enum": [
+            "square",
+            "line",
+            "dashed-line",
+            "dot"
+          ],
+          "title": "Shape",
+          "type": "string"
+        },
+        "swatch": {
+          "default": "series-1",
+          "enum": [
+            "series-1",
+            "series-2",
+            "series-3",
+            "series-4",
+            "series-5",
+            "series-6",
+            "neutral",
+            "accent",
+            "success",
+            "warning",
+            "danger"
+          ],
+          "title": "Swatch",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label"
+      ],
+      "title": "LegendEntry",
+      "type": "object"
+    },
+    "Metric": {
+      "additionalProperties": false,
+      "description": "A single grounded number rendered inside a semantic element.",
+      "properties": {
+        "format": {
+          "default": "raw",
+          "enum": [
+            "raw",
+            "integer",
+            "decimal",
+            "percent",
+            "currency",
+            "duration"
+          ],
+          "title": "Format",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "maxLength": 32,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "label",
+        "value"
+      ],
+      "title": "Metric",
+      "type": "object"
+    },
+    "MoveElementsOp": {
+      "additionalProperties": false,
+      "properties": {
+        "dx": {
+          "default": 0.0,
+          "title": "Dx",
+          "type": "number"
+        },
+        "dy": {
+          "default": 0.0,
+          "title": "Dy",
+          "type": "number"
+        },
+        "element_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 2000,
+          "minItems": 1,
+          "title": "Element Ids",
+          "type": "array"
+        },
+        "op": {
+          "const": "move_elements",
+          "default": "move_elements",
+          "title": "Op",
+          "type": "string"
+        }
+      },
+      "required": [
+        "element_ids"
+      ],
+      "title": "MoveElementsOp",
+      "type": "object"
+    },
+    "NodeElement": {
+      "additionalProperties": false,
+      "properties": {
+        "a11y_label": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "A11Y Label"
+        },
+        "group_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group Id"
+        },
+        "hidden": {
+          "default": false,
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "layer_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Layer Id",
+          "type": "string"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "meta": {
+          "$ref": "#/$defs/ElementMeta"
+        },
+        "metrics": {
+          "items": {
+            "$ref": "#/$defs/Metric"
+          },
+          "maxItems": 8,
+          "title": "Metrics",
+          "type": "array"
+        },
+        "node_kind": {
+          "default": "task",
+          "enum": [
+            "task",
+            "event",
+            "gateway",
+            "decision",
+            "start",
+            "end",
+            "entity",
+            "actor",
+            "lane",
+            "milestone",
+            "annotation",
+            "generic"
+          ],
+          "title": "Node Kind",
+          "type": "string"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Id"
+        },
+        "provenance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Provenance"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "rect": {
+          "$ref": "#/$defs/Rect"
+        },
+        "style": {
+          "$ref": "#/$defs/StyleTokens"
+        },
+        "sublabel": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sublabel"
+        },
+        "type": {
+          "const": "node",
+          "default": "node",
+          "title": "Type",
+          "type": "string"
+        },
+        "z": {
+          "default": 0,
+          "maximum": 10000,
+          "minimum": -10000,
+          "title": "Z",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "layer_id",
+        "rect",
+        "label"
+      ],
+      "title": "NodeElement",
+      "type": "object"
+    },
+    "PathElement": {
+      "additionalProperties": false,
+      "description": "Freeform stroke. Bounding box is derived, never authored.",
+      "properties": {
+        "a11y_label": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "A11Y Label"
+        },
+        "closed": {
+          "default": false,
+          "title": "Closed",
+          "type": "boolean"
+        },
+        "group_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group Id"
+        },
+        "hidden": {
+          "default": false,
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "layer_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Layer Id",
+          "type": "string"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "meta": {
+          "$ref": "#/$defs/ElementMeta"
+        },
+        "points": {
+          "items": {
+            "$ref": "#/$defs/Point"
+          },
+          "maxItems": 4000,
+          "minItems": 2,
+          "title": "Points",
+          "type": "array"
+        },
+        "smoothing": {
+          "default": 0.5,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Smoothing",
+          "type": "number"
+        },
+        "style": {
+          "$ref": "#/$defs/StyleTokens"
+        },
+        "tool": {
+          "default": "pen",
+          "enum": [
+            "pen",
+            "marker",
+            "highlighter"
+          ],
+          "title": "Tool",
+          "type": "string"
+        },
+        "type": {
+          "const": "path",
+          "default": "path",
+          "title": "Type",
+          "type": "string"
+        },
+        "z": {
+          "default": 0,
+          "maximum": 10000,
+          "minimum": -10000,
+          "title": "Z",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "layer_id",
+        "points"
+      ],
+      "title": "PathElement",
+      "type": "object"
+    },
+    "Point": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "title": "Y",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "Point",
+      "type": "object"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "description": "Where the numbers came from. Required on every data-bearing element.",
+      "properties": {
+        "aggregation": {
+          "default": "none",
+          "enum": [
+            "none",
+            "sum",
+            "avg",
+            "min",
+            "max",
+            "count",
+            "median"
+          ],
+          "title": "Aggregation",
+          "type": "string"
+        },
+        "columns": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Columns",
+          "type": "array"
+        },
+        "filters": {
+          "items": {
+            "$ref": "#/$defs/ProvenanceFilter"
+          },
+          "maxItems": 32,
+          "title": "Filters",
+          "type": "array"
+        },
+        "folder_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Folder Id"
+        },
+        "generated_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Generated At"
+        },
+        "query_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Query Id"
+        },
+        "source_table_id": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Source Table Id",
+          "type": "string"
+        },
+        "transform_revision": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Transform Revision"
+        }
+      },
+      "required": [
+        "source_table_id"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "ProvenanceFilter": {
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Field",
+          "type": "string"
+        },
+        "op": {
+          "enum": [
+            "eq",
+            "neq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "in",
+            "not_in",
+            "contains",
+            "between"
+          ],
+          "title": "Op",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "field",
+        "op"
+      ],
+      "title": "ProvenanceFilter",
+      "type": "object"
+    },
+    "Rect": {
+      "additionalProperties": false,
+      "properties": {
+        "h": {
+          "title": "H",
+          "type": "number"
+        },
+        "w": {
+          "title": "W",
+          "type": "number"
+        },
+        "x": {
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "title": "Y",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "w",
+        "h"
+      ],
+      "title": "Rect",
+      "type": "object"
+    },
+    "RemoveElementOp": {
+      "additionalProperties": false,
+      "properties": {
+        "element_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Element Id",
+          "type": "string"
+        },
+        "op": {
+          "const": "remove_element",
+          "default": "remove_element",
+          "title": "Op",
+          "type": "string"
+        }
+      },
+      "required": [
+        "element_id"
+      ],
+      "title": "RemoveElementOp",
+      "type": "object"
+    },
+    "RemoveLayerOp": {
+      "additionalProperties": false,
+      "properties": {
+        "layer_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Layer Id",
+          "type": "string"
+        },
+        "op": {
+          "const": "remove_layer",
+          "default": "remove_layer",
+          "title": "Op",
+          "type": "string"
+        }
+      },
+      "required": [
+        "layer_id"
+      ],
+      "title": "RemoveLayerOp",
+      "type": "object"
+    },
+    "ReorderElementOp": {
+      "additionalProperties": false,
+      "properties": {
+        "element_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Element Id",
+          "type": "string"
+        },
+        "op": {
+          "const": "reorder_element",
+          "default": "reorder_element",
+          "title": "Op",
+          "type": "string"
+        },
+        "z": {
+          "maximum": 10000,
+          "minimum": -10000,
+          "title": "Z",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "element_id",
+        "z"
+      ],
+      "title": "ReorderElementOp",
+      "type": "object"
+    },
+    "ResizeElementOp": {
+      "additionalProperties": false,
+      "properties": {
+        "element_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Element Id",
+          "type": "string"
+        },
+        "op": {
+          "const": "resize_element",
+          "default": "resize_element",
+          "title": "Op",
+          "type": "string"
+        },
+        "rect": {
+          "$ref": "#/$defs/Rect"
+        }
+      },
+      "required": [
+        "element_id",
+        "rect"
+      ],
+      "title": "ResizeElementOp",
+      "type": "object"
+    },
+    "SetLayerOp": {
+      "additionalProperties": false,
+      "properties": {
+        "element_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 2000,
+          "minItems": 1,
+          "title": "Element Ids",
+          "type": "array"
+        },
+        "layer_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Layer Id",
+          "type": "string"
+        },
+        "op": {
+          "const": "set_layer",
+          "default": "set_layer",
+          "title": "Op",
+          "type": "string"
+        }
+      },
+      "required": [
+        "element_ids",
+        "layer_id"
+      ],
+      "title": "SetLayerOp",
+      "type": "object"
+    },
+    "SetSelectionOp": {
+      "additionalProperties": false,
+      "properties": {
+        "element_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 2000,
+          "title": "Element Ids",
+          "type": "array"
+        },
+        "op": {
+          "const": "set_selection",
+          "default": "set_selection",
+          "title": "Op",
+          "type": "string"
+        }
+      },
+      "title": "SetSelectionOp",
+      "type": "object"
+    },
+    "SetStyleOp": {
+      "additionalProperties": false,
+      "properties": {
+        "element_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 2000,
+          "minItems": 1,
+          "title": "Element Ids",
+          "type": "array"
+        },
+        "op": {
+          "const": "set_style",
+          "default": "set_style",
+          "title": "Op",
+          "type": "string"
+        },
+        "style": {
+          "additionalProperties": true,
+          "title": "Style",
+          "type": "object"
+        }
+      },
+      "required": [
+        "element_ids"
+      ],
+      "title": "SetStyleOp",
+      "type": "object"
+    },
+    "SetTitleOp": {
+      "additionalProperties": false,
+      "properties": {
+        "op": {
+          "const": "set_title",
+          "default": "set_title",
+          "title": "Op",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title"
+      ],
+      "title": "SetTitleOp",
+      "type": "object"
+    },
+    "SetViewportOp": {
+      "additionalProperties": false,
+      "properties": {
+        "op": {
+          "const": "set_viewport",
+          "default": "set_viewport",
+          "title": "Op",
+          "type": "string"
+        },
+        "x": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "X"
+        },
+        "y": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Y"
+        },
+        "zoom": {
+          "anyOf": [
+            {
+              "maximum": 8.0,
+              "minimum": 0.05,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Zoom"
+        }
+      },
+      "title": "SetViewportOp",
+      "type": "object"
+    },
+    "ShapeElement": {
+      "additionalProperties": false,
+      "properties": {
+        "a11y_label": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "A11Y Label"
+        },
+        "group_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group Id"
+        },
+        "hidden": {
+          "default": false,
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "layer_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Layer Id",
+          "type": "string"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "meta": {
+          "$ref": "#/$defs/ElementMeta"
+        },
+        "rect": {
+          "$ref": "#/$defs/Rect"
+        },
+        "rotation": {
+          "default": 0.0,
+          "maximum": 360.0,
+          "minimum": -360.0,
+          "title": "Rotation",
+          "type": "number"
+        },
+        "shape": {
+          "default": "rect",
+          "enum": [
+            "rect",
+            "ellipse",
+            "triangle",
+            "diamond",
+            "arrow",
+            "line",
+            "star",
+            "cloud",
+            "callout",
+            "bracket"
+          ],
+          "title": "Shape",
+          "type": "string"
+        },
+        "style": {
+          "$ref": "#/$defs/StyleTokens"
+        },
+        "text": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Text"
+        },
+        "type": {
+          "const": "shape",
+          "default": "shape",
+          "title": "Type",
+          "type": "string"
+        },
+        "z": {
+          "default": 0,
+          "maximum": 10000,
+          "minimum": -10000,
+          "title": "Z",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "layer_id",
+        "rect"
+      ],
+      "title": "ShapeElement",
+      "type": "object"
+    },
+    "StyleTokens": {
+      "additionalProperties": false,
+      "description": "Closed style vocabulary. No raw CSS, colors, or font names allowed.",
+      "properties": {
+        "corner": {
+          "default": "soft",
+          "enum": [
+            "sharp",
+            "soft",
+            "round",
+            "pill"
+          ],
+          "title": "Corner",
+          "type": "string"
+        },
+        "emphasis": {
+          "default": "none",
+          "enum": [
+            "none",
+            "highlight",
+            "dim",
+            "outline"
+          ],
+          "title": "Emphasis",
+          "type": "string"
+        },
+        "fill": {
+          "default": "surface",
+          "enum": [
+            "transparent",
+            "surface",
+            "surface-muted",
+            "surface-raised",
+            "surface-inverted",
+            "accent",
+            "accent-muted",
+            "success",
+            "warning",
+            "danger",
+            "info"
+          ],
+          "title": "Fill",
+          "type": "string"
+        },
+        "opacity": {
+          "default": 1.0,
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Opacity",
+          "type": "number"
+        },
+        "shadow": {
+          "default": "none",
+          "enum": [
+            "none",
+            "soft",
+            "raised"
+          ],
+          "title": "Shadow",
+          "type": "string"
+        },
+        "stroke": {
+          "default": "default",
+          "enum": [
+            "none",
+            "subtle",
+            "default",
+            "strong",
+            "accent",
+            "success",
+            "warning",
+            "danger",
+            "info"
+          ],
+          "title": "Stroke",
+          "type": "string"
+        },
+        "stroke_dash": {
+          "default": "solid",
+          "enum": [
+            "solid",
+            "dashed",
+            "dotted"
+          ],
+          "title": "Stroke Dash",
+          "type": "string"
+        },
+        "stroke_width": {
+          "default": "thin",
+          "enum": [
+            "none",
+            "thin",
+            "regular",
+            "thick"
+          ],
+          "title": "Stroke Width",
+          "type": "string"
+        },
+        "text": {
+          "default": "body",
+          "enum": [
+            "caption",
+            "label",
+            "body-sm",
+            "body",
+            "heading-sm",
+            "heading",
+            "heading-lg",
+            "mono"
+          ],
+          "title": "Text",
+          "type": "string"
+        },
+        "text_align": {
+          "default": "left",
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ],
+          "title": "Text Align",
+          "type": "string"
+        }
+      },
+      "title": "StyleTokens",
+      "type": "object"
+    },
+    "TableColumn": {
+      "additionalProperties": false,
+      "properties": {
+        "align": {
+          "default": "left",
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ],
+          "title": "Align",
+          "type": "string"
+        },
+        "field": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Field",
+          "type": "string"
+        },
+        "format": {
+          "default": "raw",
+          "enum": [
+            "raw",
+            "integer",
+            "decimal",
+            "percent",
+            "currency",
+            "duration"
+          ],
+          "title": "Format",
+          "type": "string"
+        },
+        "header": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Header",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field",
+        "header"
+      ],
+      "title": "TableColumn",
+      "type": "object"
+    },
+    "TableElement": {
+      "additionalProperties": false,
+      "properties": {
+        "a11y_label": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "A11Y Label"
+        },
+        "columns": {
+          "items": {
+            "$ref": "#/$defs/TableColumn"
+          },
+          "maxItems": 40,
+          "minItems": 1,
+          "title": "Columns",
+          "type": "array"
+        },
+        "group_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group Id"
+        },
+        "hidden": {
+          "default": false,
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "layer_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Layer Id",
+          "type": "string"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "meta": {
+          "$ref": "#/$defs/ElementMeta"
+        },
+        "page_size": {
+          "default": 25,
+          "maximum": 500,
+          "minimum": 1,
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "rect": {
+          "$ref": "#/$defs/Rect"
+        },
+        "style": {
+          "$ref": "#/$defs/StyleTokens"
+        },
+        "title": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "type": {
+          "const": "table",
+          "default": "table",
+          "title": "Type",
+          "type": "string"
+        },
+        "z": {
+          "default": 0,
+          "maximum": 10000,
+          "minimum": -10000,
+          "title": "Z",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "layer_id",
+        "rect",
+        "title",
+        "columns",
+        "provenance"
+      ],
+      "title": "TableElement",
+      "type": "object"
+    },
+    "TextElement": {
+      "additionalProperties": false,
+      "properties": {
+        "a11y_label": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "A11Y Label"
+        },
+        "group_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Group Id"
+        },
+        "hidden": {
+          "default": false,
+          "title": "Hidden",
+          "type": "boolean"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "layer_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Layer Id",
+          "type": "string"
+        },
+        "locked": {
+          "default": false,
+          "title": "Locked",
+          "type": "boolean"
+        },
+        "meta": {
+          "$ref": "#/$defs/ElementMeta"
+        },
+        "rect": {
+          "$ref": "#/$defs/Rect"
+        },
+        "role": {
+          "default": "note",
+          "enum": [
+            "note",
+            "title",
+            "caption",
+            "callout"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "style": {
+          "$ref": "#/$defs/StyleTokens"
+        },
+        "text": {
+          "maxLength": 8000,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "type": {
+          "const": "text",
+          "default": "text",
+          "title": "Type",
+          "type": "string"
+        },
+        "z": {
+          "default": 0,
+          "maximum": 10000,
+          "minimum": -10000,
+          "title": "Z",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "layer_id",
+        "rect",
+        "text"
+      ],
+      "title": "TextElement",
+      "type": "object"
+    },
+    "UngroupOp": {
+      "additionalProperties": false,
+      "properties": {
+        "group_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Group Id",
+          "type": "string"
+        },
+        "op": {
+          "const": "ungroup",
+          "default": "ungroup",
+          "title": "Op",
+          "type": "string"
+        }
+      },
+      "required": [
+        "group_id"
+      ],
+      "title": "UngroupOp",
+      "type": "object"
+    },
+    "UpdateElementOp": {
+      "additionalProperties": false,
+      "description": "Partial update. The result is re-validated against the element model, so\nimmutable fields (``id``, ``type``, ``meta``) are rejected.",
+      "properties": {
+        "element_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Element Id",
+          "type": "string"
+        },
+        "op": {
+          "const": "update_element",
+          "default": "update_element",
+          "title": "Op",
+          "type": "string"
+        },
+        "patch": {
+          "additionalProperties": true,
+          "title": "Patch",
+          "type": "object"
+        }
+      },
+      "required": [
+        "element_id"
+      ],
+      "title": "UpdateElementOp",
+      "type": "object"
+    },
+    "UpdateLayerOp": {
+      "additionalProperties": false,
+      "properties": {
+        "layer_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$",
+          "title": "Layer Id",
+          "type": "string"
+        },
+        "op": {
+          "const": "update_layer",
+          "default": "update_layer",
+          "title": "Op",
+          "type": "string"
+        },
+        "patch": {
+          "additionalProperties": true,
+          "title": "Patch",
+          "type": "object"
+        }
+      },
+      "required": [
+        "layer_id"
+      ],
+      "title": "UpdateLayerOp",
+      "type": "object"
+    },
+    "Viewport": {
+      "additionalProperties": false,
+      "properties": {
+        "selected_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 2000,
+          "title": "Selected Ids",
+          "type": "array"
+        },
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "zoom": {
+          "default": 1.0,
+          "maximum": 8.0,
+          "minimum": 0.05,
+          "title": "Zoom",
+          "type": "number"
+        }
+      },
+      "title": "Viewport",
+      "type": "object"
+    }
+  },
+  "$id": "https://eventhorizon.local/schemas/visual-document-1.0.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "elements": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "chart": "#/$defs/ChartElement",
+            "edge": "#/$defs/EdgeElement",
+            "gantt": "#/$defs/GanttElement",
+            "image": "#/$defs/ImageElement",
+            "kpi": "#/$defs/KpiElement",
+            "legend": "#/$defs/LegendElement",
+            "node": "#/$defs/NodeElement",
+            "path": "#/$defs/PathElement",
+            "shape": "#/$defs/ShapeElement",
+            "table": "#/$defs/TableElement",
+            "text": "#/$defs/TextElement"
+          },
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/NodeElement"
+          },
+          {
+            "$ref": "#/$defs/EdgeElement"
+          },
+          {
+            "$ref": "#/$defs/ChartElement"
+          },
+          {
+            "$ref": "#/$defs/KpiElement"
+          },
+          {
+            "$ref": "#/$defs/TableElement"
+          },
+          {
+            "$ref": "#/$defs/GanttElement"
+          },
+          {
+            "$ref": "#/$defs/TextElement"
+          },
+          {
+            "$ref": "#/$defs/ShapeElement"
+          },
+          {
+            "$ref": "#/$defs/PathElement"
+          },
+          {
+            "$ref": "#/$defs/ImageElement"
+          },
+          {
+            "$ref": "#/$defs/LegendElement"
+          }
+        ]
+      },
+      "maxItems": 2000,
+      "title": "Elements",
+      "type": "array"
+    },
+    "groups": {
+      "items": {
+        "$ref": "#/$defs/Group"
+      },
+      "maxItems": 256,
+      "title": "Groups",
+      "type": "array"
+    },
+    "history": {
+      "items": {
+        "$ref": "#/$defs/Commit"
+      },
+      "maxItems": 200,
+      "title": "History",
+      "type": "array"
+    },
+    "layers": {
+      "items": {
+        "$ref": "#/$defs/Layer"
+      },
+      "maxItems": 32,
+      "title": "Layers",
+      "type": "array"
+    },
+    "metadata": {
+      "$ref": "#/$defs/DocumentMetadata"
+    },
+    "redo_stack": {
+      "items": {
+        "$ref": "#/$defs/Commit"
+      },
+      "maxItems": 200,
+      "title": "Redo Stack",
+      "type": "array"
+    },
+    "viewport": {
+      "$ref": "#/$defs/Viewport"
+    }
+  },
+  "required": [
+    "metadata"
+  ],
+  "title": "VisualDocument",
+  "type": "object"
+}
