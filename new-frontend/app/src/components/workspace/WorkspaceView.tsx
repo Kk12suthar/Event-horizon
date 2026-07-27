@@ -73,9 +73,9 @@ function useMediaQuery(query: string): boolean {
 
   return matches;
 }
-  const navigate = useNavigate();
 
 export function WorkspaceView() {
+  const navigate = useNavigate();
   const appState = useAppState();
   const { user } = useAuth();
   const {

@@ -1,4 +1,5 @@
 import sys
+import types
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -6,6 +7,25 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+
+
+def _install_database_stub() -> None:
+    """Keep this unit test independent from a reachable PostgreSQL instance."""
+    if "database" in sys.modules:
+        return
+    try:
+        import database  # noqa: F401
+    except Exception:
+        stub = types.ModuleType("database")
+
+        def get_db():
+            yield None
+
+        stub.get_db = get_db
+        sys.modules["database"] = stub
+
+
+_install_database_stub()
 
 from router import projects
 from schemas import ProjectCreate
