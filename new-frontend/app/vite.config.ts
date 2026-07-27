@@ -9,7 +9,7 @@ import { inspectAttr } from 'kimi-plugin-inspect-react'
 // because the installed Vitest (2.x) bundles a different Vite version than the
 // project's Vite 7, so its config-type augmentation does not apply here.
 export default defineConfig({
-  base: './',
+  base: '/',
   plugins: [inspectAttr(), react()],
   server: {
     port: 3000,

@@ -6,6 +6,7 @@ import { ForgotPassword } from '@/pages/auth/ForgotPassword';
 import { ResetPassword } from '@/pages/auth/ResetPassword';
 import { VerifyEmail } from '@/pages/auth/VerifyEmail';
 import { AppShell } from '@/components/AppShell';
+import { RouteErrorBoundary } from '@/components/AppErrorBoundary';
 import { Landing } from '@/pages/Landing';
 import { Projects } from '@/pages/Projects';
 import { Canvas } from '@/pages/Canvas';
@@ -89,7 +90,9 @@ function AppRoutes() {
 function App() {
   return (
     <BrowserRouter>
-      <AppRoutes />
+      <RouteErrorBoundary>
+        <AppRoutes />
+      </RouteErrorBoundary>
     </BrowserRouter>
   );
 }
