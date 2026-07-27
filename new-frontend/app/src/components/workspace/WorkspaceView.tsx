@@ -17,7 +17,7 @@ import { EmptyState } from './EmptyState';
 import { ArtifactPanel } from './ArtifactPanel';
 
 /**
- * WorkspaceView â€” thin orchestrator + responsive shell for the unified
+ * WorkspaceView - thin orchestrator + responsive shell for the unified
  * Workspace. It wires the pipeline/chat/upload hooks to the ModeSwitcher,
  * ChatThread, Composer, and ArtifactPanel, and lays them out responsively.
  *
@@ -27,7 +27,7 @@ import { ArtifactPanel } from './ArtifactPanel';
  * right artifact panel:
  *
  *   Desktop (â‰¥1024px / `lg`): the artifact panel is in-flow on the right
- *     (its own `lg:static` styling) beside the centered chat column â€” together
+ *     (its own `lg:static` styling) beside the centered chat column - together
  *     with the AppShell rail this is the three-zone layout (R10.1).
  *
  *   Tablet (640â€“1023px): the rail is hidden by AppShell and the artifact panel
@@ -115,7 +115,7 @@ export function WorkspaceView() {
 
   // Effective mode: honor the requested mode when its gate is open, otherwise
   // fall back to the first enabled mode (Sources is always enabled). Derived
-  // during render â€” no setState-in-effect needed (Requirement 3.6).
+  // during render - no setState-in-effect needed (Requirement 3.6).
   const normalizedRequestedMode: WorkspaceMode = requestedMode === 'sources' ? 'prepare' : requestedMode;
   const mode: WorkspaceMode = pipeline.enabledModes[normalizedRequestedMode]
     ? normalizedRequestedMode
@@ -222,7 +222,7 @@ export function WorkspaceView() {
           onSelectFolder={handleSelectFolder}
         />
 
-        {/* Mode switcher row â€” horizontally scrollable pills on small screens
+        {/* Mode switcher row - horizontally scrollable pills on small screens
             (R10.4) with no horizontal overflow of the layout (R10.5). */}
         <div
           className="flex-shrink-0 overflow-x-auto px-3 py-2"

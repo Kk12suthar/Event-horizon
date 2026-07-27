@@ -10,9 +10,7 @@ import {
   FolderOpen,
   Info,
   Layers3,
-  List,
   Lock,
-  MoreHorizontal,
   Pencil,
   Plus,
   Search,
@@ -20,7 +18,6 @@ import {
   Trash2,
   Upload,
   Wand2,
-  Waypoints,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -40,10 +37,11 @@ import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { EmptyState } from '@/components/EmptyState';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { InlineFolderUpload } from '@/components/data/InlineFolderUpload';
 import { usePipelineStage } from '@/hooks/usePipelineStage';
+import { useFolderUpload } from '@/hooks/useFolderUpload';
 import { useAppState } from '@/hooks/useAppState';
 import { useAuth } from '@/hooks/useAuth';
 import { fetchAllFolderTables } from '@/lib/api';
@@ -139,10 +137,6 @@ function useFolderWorkspaceData(folder: Folder, canUpload: boolean): {
   );
 
   return { tables, pipeline: gatedPipeline };
-}
-
-function useFolderPipeline(folder: Folder, canUpload: boolean): PipelineState {
-  return useFolderWorkspaceData(folder, canUpload).pipeline;
 }
 
 function WorkflowActions({
@@ -283,6 +277,10 @@ function ProjectCanvas({
   canDelete,
   onSelectFolder,
   onOpenWorkspace,
+  upload,
+  uploadPanelOpen,
+  onRequestUpload,
+  onCloseUpload,
   onInfo,
   onDelete,
 }: {
@@ -293,6 +291,10 @@ function ProjectCanvas({
   canDelete: boolean;
   onSelectFolder: (folder: Folder) => void;
   onOpenWorkspace: (folderId: string, mode: WorkspaceMode) => void;
+  upload: ReturnType<typeof useFolderUpload>;
+  uploadPanelOpen: boolean;
+  onRequestUpload: () => void;
+  onCloseUpload: () => void;
   onInfo: () => void;
   onDelete: () => void;
 }) {
@@ -383,9 +385,9 @@ function ProjectCanvas({
           kind: 'source',
           eyebrow: 'Source',
           label: canUpload ? 'Upload first source' : 'No source available',
-          meta: canUpload ? 'Opens Prepare' : 'Upload access required',
+          meta: canUpload ? 'Add files beside the canvas' : 'Upload access required',
           locked: !canUpload,
-          actionMode: canUpload ? 'prepare' : undefined,
+          actionMode: canUpload ? 'sources' : undefined,
         },
       });
       nextEdges.push(edge('folder-source-empty', `folder-${selectedFolder.id}`, 'source-empty'));
@@ -466,6 +468,10 @@ function ProjectCanvas({
       if (folder) onSelectFolder(folder);
       return;
     }
+    if (node.data.actionMode === 'sources' && !node.data.locked) {
+      onRequestUpload();
+      return;
+    }
     if (node.data.actionMode && (!node.data.locked || node.data.actionMode === 'prepare')) {
       onOpenWorkspace(selectedFolder.id, node.data.actionMode);
     }
@@ -481,9 +487,6 @@ function ProjectCanvas({
             nodeTypes={NODE_TYPES}
             onInit={setFlowInstance}
             onNodeClick={(_, node) => openFromNode(node)}
-            onNodeDoubleClick={(_, node) => {
-              if (node.data.folderId && canUpload) onOpenWorkspace(node.data.folderId, 'prepare');
-            }}
             nodesDraggable={false}
             nodesConnectable={false}
             elementsSelectable
@@ -533,6 +536,20 @@ function ProjectCanvas({
             </p>
           </div>
 
+          <div className="border-b border-[#242424] px-4 py-3">
+            <InlineFolderUpload
+              folderName={selectedFolder.name}
+              open={uploadPanelOpen}
+              canUpload={canUpload}
+              stage={upload.stage}
+              progress={upload.progress}
+              error={upload.error}
+              onUpload={upload.upload}
+              onOpen={onRequestUpload}
+              onClose={onCloseUpload}
+            />
+          </div>
+
           <div className="grid grid-cols-2 border-b border-[#242424]">
             <div className="border-r border-[#242424] px-5 py-4">
               <p className="text-xl font-semibold text-white">{uploadedTables.length}</p>
@@ -579,12 +596,12 @@ function ProjectCanvas({
 
           <div className="space-y-2 border-t border-[#242424] p-4">
             <Button
-              onClick={() => onOpenWorkspace(selectedFolder.id, pipeline.hasUploadedTables ? 'prepare' : 'sources')}
-              disabled={!pipeline.enabledModes.prepare}
+              onClick={() => pipeline.hasUploadedTables ? onOpenWorkspace(selectedFolder.id, 'prepare') : onRequestUpload()}
+              disabled={pipeline.hasUploadedTables ? !pipeline.enabledModes.prepare : !canUpload}
               className="h-9 w-full bg-[#C16E43] text-[#090909] hover:bg-[#D07A4E]"
             >
               {pipeline.hasUploadedTables ? <Wand2 className="mr-2 h-4 w-4" /> : <Upload className="mr-2 h-4 w-4" />}
-              {pipeline.hasUploadedTables ? 'Open Prepare' : 'Upload data'}
+              {pipeline.hasUploadedTables ? 'Open Prepare' : 'Add source files'}
             </Button>
             <div className="grid grid-cols-2 gap-2">
               <Button
@@ -645,11 +662,11 @@ function ProjectCanvas({
 export function Projects() {
   const navigate = useNavigate();
   const appState = useAppState();
-  const { isAdmin, isAnalyst } = useAuth();
+  const { isAdmin, isAnalyst, user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [folderQuery, setFolderQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'canvas' | 'list'>('list');
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [uploadPanelOpen, setUploadPanelOpen] = useState(false);
   const [showCreateProject, setShowCreateProject] = useState(false);
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [showProjectInfo, setShowProjectInfo] = useState(false);
@@ -692,6 +709,19 @@ export function Projects() {
   const canUpload = isAdmin || isAnalyst;
   const canDeleteFolder = isAdmin || isAnalyst;
   const infoFolder = showFolderInfoId ? appState.folderList.find((folder) => folder.id === showFolderInfoId) : null;
+  const upload = useFolderUpload({
+    folder: selectedFolder,
+    user,
+    ensureSession: appState.ensureSession,
+    updateFolder: appState.updateFolder,
+    loadTablesForFolder: appState.loadTablesForFolder,
+    addFiles: appState.addFiles,
+    onTablesCreated: (folder) => {
+      appState.selectFolder(folder);
+      setSelectedFolderId(folder.id);
+      void appState.refreshWorkspace();
+    },
+  });
 
   const resetProjectForm = () => {
     setProjectForm({ name: '', description: '', status: 'Active' });
@@ -732,6 +762,7 @@ export function Projects() {
       if (folder) {
         appState.selectFolder(folder);
         setSelectedFolderId(folder.id);
+        setUploadPanelOpen(true);
       }
       setShowCreateFolder(false);
       resetFolderForm();
@@ -763,16 +794,21 @@ export function Projects() {
 
   const openWorkspace = (folderId: string, mode: WorkspaceMode) => {
     const folder = appState.folderList.find((item) => item.id === folderId);
-    if (folder) appState.selectFolder(folder);
+    if (folder) {
+      appState.selectFolder(folder);
+      setSelectedFolderId(folder.id);
+    }
     if (mode === 'sources') {
-      navigate(`/app/upload?folderId=${folderId}`);
+      setUploadPanelOpen(true);
       return;
     }
     navigate(`/app/workspace?folderId=${folderId}&mode=${mode}`);
   };
 
   const selectCanvasFolder = (folder: Folder) => {
+    appState.selectFolder(folder);
     setSelectedFolderId(folder.id);
+    setUploadPanelOpen(true);
   };
 
   return (
@@ -785,11 +821,11 @@ export function Projects() {
               <button
                 type="button"
                 onClick={() => { resetProjectForm(); setShowCreateProject(true); }}
-                className="flex h-8 items-center justify-center gap-1.5 rounded-md bg-[#C16E43] px-2.5 text-xs font-semibold text-[#090909] transition-colors hover:bg-[#D07A4E]"
-                title="Create a new project"
+                className="flex h-7 w-7 flex-none items-center justify-center rounded-md bg-[#C16E43] text-[#090909] transition-colors hover:bg-[#D07A4E]"
+                title="New project"
+                aria-label="New project"
               >
                 <Plus className="h-3.5 w-3.5" />
-                New project
               </button>
             )}
           </div>
@@ -866,26 +902,6 @@ export function Projects() {
                     className="h-8 border-[#303030] bg-[#111] pl-8 text-xs text-white placeholder:text-[#666]"
                   />
                 </div>
-                <div className="flex flex-none items-center rounded-md border border-[#303030] bg-[#111] p-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('canvas')}
-                    className={`flex h-7 w-7 items-center justify-center rounded ${viewMode === 'canvas' ? 'bg-[#292929] text-white' : 'text-[#777] hover:text-white'}`}
-                    title="Canvas view"
-                    aria-label="Canvas view"
-                  >
-                    <Waypoints className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode('list')}
-                    className={`flex h-7 w-7 items-center justify-center rounded ${viewMode === 'list' ? 'bg-[#292929] text-white' : 'text-[#777] hover:text-white'}`}
-                    title="List view"
-                    aria-label="List view"
-                  >
-                    <List className="h-3.5 w-3.5" />
-                  </button>
-                </div>
               </div>
 
               <div className="flex flex-none items-center gap-1.5">
@@ -917,9 +933,15 @@ export function Projects() {
                   </button>
                 )}
                 {canUpload && (
-                  <Button onClick={() => { resetFolderForm(); setShowCreateFolder(true); }} className="h-8 bg-[#C16E43] px-3 text-xs text-[#090909] hover:bg-[#D07A4E]">
-                    <Plus className="mr-1.5 h-3.5 w-3.5" /> New folder
-                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => { resetFolderForm(); setShowCreateFolder(true); }}
+                    className="flex h-7 w-7 items-center justify-center rounded-md bg-[#C16E43] text-[#090909] transition hover:bg-[#D07A4E]"
+                    title="New folder"
+                    aria-label="New folder"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
                 )}
               </div>
             </header>
@@ -933,7 +955,7 @@ export function Projects() {
               />
             ) : !visibleFolders.length ? (
               <EmptyState icon="folder" title="No matching folders" description="Try a different folder name." />
-            ) : viewMode === 'canvas' && selectedFolder ? (
+            ) : selectedFolder ? (
               <ProjectCanvas
                 key={appState.selectedProject.id}
                 project={appState.selectedProject}
@@ -943,39 +965,14 @@ export function Projects() {
                 canDelete={canDeleteFolder}
                 onSelectFolder={selectCanvasFolder}
                 onOpenWorkspace={openWorkspace}
+                upload={upload}
+                uploadPanelOpen={uploadPanelOpen}
+                onRequestUpload={() => setUploadPanelOpen(true)}
+                onCloseUpload={() => setUploadPanelOpen(false)}
                 onInfo={() => setShowFolderInfoId(selectedFolder.id)}
                 onDelete={() => setShowDeleteFolder(selectedFolder.id)}
               />
-            ) : (
-              <div className="flex-1 overflow-auto border-t border-[#292929] p-4 sm:p-5">
-                <div className="overflow-x-auto rounded-lg border border-[#262626] bg-[#131313]">
-                  <table className="w-full min-w-[640px]">
-                    <thead>
-                      <tr className="border-b border-[#262626]">
-                        <th className="px-4 py-3 text-left text-xs font-medium uppercase text-[#999]">Name</th>
-                        <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase text-[#999] md:table-cell">Description</th>
-                        <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase text-[#999] lg:table-cell">Created By</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium uppercase text-[#999]">Status</th>
-                        <th className="px-4 py-3 text-right text-xs font-medium uppercase text-[#999]">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {visibleFolders.map((folder) => (
-                        <FolderRow
-                          key={folder.id}
-                          folder={folder}
-                          canUpload={canUpload}
-                          onOpenWorkspace={openWorkspace}
-                          onInfo={() => setShowFolderInfoId(folder.id)}
-                          onDelete={() => setShowDeleteFolder(folder.id)}
-                          canDelete={canDeleteFolder}
-                        />
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+            ) : null}
           </>
         )}
       </main>
@@ -1061,54 +1058,5 @@ export function Projects() {
       <ConfirmDialog open={showDeleteProject} onOpenChange={setShowDeleteProject} title="Delete Project?" description={`This will permanently delete "${appState.selectedProject?.name}" and all its folders. This action cannot be undone.`} onConfirm={handleDeleteProject} isLoading={isSubmitting} />
       <ConfirmDialog open={!!showDeleteFolder} onOpenChange={() => setShowDeleteFolder(null)} title="Delete Folder?" description="This will permanently delete this folder. This action cannot be undone." onConfirm={() => showDeleteFolder && handleDeleteFolder(showDeleteFolder)} isLoading={isSubmitting} />
     </div>
-  );
-}
-
-function FolderRow({ folder, canUpload, onOpenWorkspace, onInfo, onDelete, canDelete }: {
-  folder: Folder;
-  canUpload: boolean;
-  onOpenWorkspace: (folderId: string, mode: WorkspaceMode) => void;
-  onInfo: () => void;
-  onDelete: () => void;
-  canDelete: boolean;
-}) {
-  const pipeline = useFolderPipeline(folder, canUpload);
-  const openDefault = () => {
-    onOpenWorkspace(folder.id, pipeline.hasUploadedTables ? 'prepare' : 'sources');
-  };
-
-  return (
-    <tr
-      onClick={openDefault}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          openDefault();
-        }
-      }}
-      tabIndex={0}
-      role="button"
-      aria-label={`Open ${folder.name}`}
-      className="cursor-pointer border-b border-[#262626] transition-colors last:border-0 hover:bg-[#181818] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C16E43]"
-    >
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-2"><FolderOpen className="h-4 w-4 text-[#D88A5F]" /><span className="text-sm font-medium text-white">{folder.name}</span></div>
-      </td>
-      <td className="hidden max-w-[200px] truncate px-4 py-3 text-sm text-[#B8B8B8] md:table-cell">{folder.description}</td>
-      <td className="hidden px-4 py-3 text-sm text-[#B8B8B8] lg:table-cell">{folder.createdBy}</td>
-      <td className="px-4 py-3"><span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusClass(folder.status)}`}>{folder.status}</span></td>
-      <td className="px-4 py-3" onClick={(event) => event.stopPropagation()}>
-        <div className="flex items-center justify-end gap-1">
-          <WorkflowActions folder={folder} pipeline={pipeline} onOpen={onOpenWorkspace} size="sm" />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild><Button size="sm" variant="ghost" className="h-7 px-2 text-[#B8B8B8] hover:text-white"><MoreHorizontal className="h-3.5 w-3.5" /></Button></DropdownMenuTrigger>
-            <DropdownMenuContent className="border-[#262626] bg-[#0D0D0D]">
-              <DropdownMenuItem onClick={onInfo} className="text-[#B8B8B8] focus:bg-[#181818] focus:text-white"><Info className="mr-2 h-4 w-4" /> Info</DropdownMenuItem>
-              {canDelete && <DropdownMenuItem onClick={onDelete} className="text-[#F97066] focus:bg-[#F97066]/10 focus:text-[#F97066]"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </td>
-    </tr>
   );
 }

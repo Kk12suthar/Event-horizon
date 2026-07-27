@@ -278,6 +278,10 @@ export function useVisualDocument({
     [runServerMutation],
   );
 
+  const refresh = useCallback(
+    () => (documentRef.current ? loadDetails(documentRef.current.metadata.id, true) : Promise.resolve(null)),
+    [loadDetails],
+  );
   const removeCurrent = useCallback(async () => {
     const current = documentRef.current;
     if (!current) return;
@@ -308,7 +312,7 @@ export function useVisualDocument({
     error,
     create,
     select,
-    refresh: () => (documentRef.current ? loadDetails(documentRef.current.metadata.id, true) : Promise.resolve(null)),
+    refresh,
     commit,
     undo,
     redo,

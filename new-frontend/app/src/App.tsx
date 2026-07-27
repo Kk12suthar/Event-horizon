@@ -1,4 +1,4 @@
-﻿import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthLayout } from '@/pages/auth/AuthLayout';
 import { SignIn } from '@/pages/auth/SignIn';
 import { SignUp } from '@/pages/auth/SignUp';
@@ -10,7 +10,6 @@ import { Landing } from '@/pages/Landing';
 import { Projects } from '@/pages/Projects';
 import { Canvas } from '@/pages/Canvas';
 import { Workspace } from '@/pages/Workspace';
-import { Upload } from '@/pages/Upload';
 import { AdminPanel } from '@/pages/AdminPanel';
 import { ModelAccess } from '@/pages/ModelAccess';
 import { useAuth } from '@/hooks/useAuth';
@@ -72,7 +71,7 @@ function AppRoutes() {
         <Route path="canvas" element={<Canvas />} />
         <Route path="project" element={<Projects />} />
         <Route path="workspace" element={<Workspace />} />
-        <Route path="upload" element={<Upload />} />
+        <Route path="upload" element={<Navigate to="/app/project" replace />} />
         <Route path="transform" element={<RedirectToWorkspace mode="prepare" />} />
         <Route path="dashboard" element={<RedirectToWorkspace mode="visualize" />} />
         <Route path="reports" element={<RedirectToWorkspace mode="publish" />} />
